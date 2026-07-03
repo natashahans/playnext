@@ -1,11 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const router = useRouter();
+
+    useEffect(() => {
+    async function redirectIfLoggedIn() {
+        const { data } = await supabase.auth.getUser();
+
+        if (data.user) {
+        router.push("/dashboard");
+        }
+    }
+
+    redirectIfLoggedIn();
+    }, [router]);
 
   async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
