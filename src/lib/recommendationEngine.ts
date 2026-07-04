@@ -430,7 +430,16 @@ export function scoreGames(
 
       if (
         wantsHorrorExperience(intent) &&
-        hasTagSignal(game, ["Horror", "Survival Horror", "Dark", "Psychological Horror"])
+        hasTagSignal(game, [
+          "Survival Horror",
+          "Psychological Horror",
+          "Lovecraftian",
+          "Demons",
+          "Zombies",
+          "Ghosts",
+          "Monsters",
+          "Dark Fantasy"
+        ])
       ) {
         addScore(
           "Horror tag match",
