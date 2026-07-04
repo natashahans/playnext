@@ -21,21 +21,21 @@ export default function SignupPage() {
     redirectIfLoggedIn();
     }, [router]);
 
-  async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
+    async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+        email,
+        password,
     });
 
     if (error) {
-      alert(error.message);
-      return;
+        alert(error.message);
+        return;
     }
 
     alert("Account created. Please check your email to confirm your account.");
-  }
+    }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
