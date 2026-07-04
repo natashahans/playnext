@@ -5,7 +5,12 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { mockExtractIntent, type ExtractedIntent } from "@/lib/mockIntentExtraction";
-import { scoreGames, type RecommendationGame, type ScoredGame } from "@/lib/recommendationEngine";
+import {
+  scoreGames,
+  type PreviousFeedback,
+  type RecommendationGame,
+  type ScoredGame,
+} from "@/lib/recommendationEngine";
 import { supabase } from "@/lib/supabase";
 import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
 
@@ -87,7 +92,44 @@ export default function RecommendPage() {
       return;
     }
 
-    const scoredGames = scoreGames(games, intent);
+    const { data: feedbackData, error: feedbackError } = await supabase
+    .from("feedback")
+    .select(`
+        feedback_type,
+        recommendations (
+        game_id
+        )
+    `)
+    .eq("user_id", userData.user.id);
+
+    if (feedbackError) {
+    alert(feedbackError.message);
+    setLoading(false);
+    return;
+    }
+
+    const previousFeedback = ((feedbackData ?? []) as unknown as {
+    feedback_type: string;
+    recommendations:
+        | { game_id: string }
+        | { game_id: string }[]
+        | null;
+    }[]).map((item) => {
+    const recommendation = Array.isArray(item.recommendations)
+        ? item.recommendations[0]
+        : item.recommendations;
+
+    return {
+        game_id: recommendation?.game_id ?? "",
+        feedback_type: item.feedback_type,
+    };
+    }).filter((item) => item.game_id);
+
+    const scoredGames = scoreGames(
+    games,
+    intent,
+    previousFeedback as PreviousFeedback[]
+    );
     const bestGame = scoredGames[0];
 
     const { data: recommendationData, error: recommendationError } = await supabase
