@@ -172,6 +172,7 @@ export default function RecommendPage() {
           game_id: bestGame.id,
           score: bestGame.score,
           explanation: bestGame.explanation,
+          score_breakdown: bestGame.scoreBreakdown,
         })
         .select("id")
         .single();
