@@ -101,6 +101,41 @@ function wantsLongSession(intent: ExtractedIntent) {
   );
 }
 
+function wantsStoryExperience(intent: ExtractedIntent) {
+  const text = intent.desiredExperience?.toLowerCase() ?? "";
+
+  return (
+    text.includes("story") ||
+    text.includes("narrative") ||
+    text.includes("plot") ||
+    text.includes("immersive")
+  );
+}
+
+function gameHasStoryGenre(game: RecommendationGame) {
+  return game.genres?.some((genre) =>
+    ["Adventure", "RPG", "Story Rich", "Narrative"].some(
+      (target) => genre.toLowerCase() === target.toLowerCase()
+    )
+  );
+}
+
+function gameHasGameplayGenre(game: RecommendationGame) {
+  return game.genres?.some((genre) =>
+    ["Action", "Shooter", "Platformer", "Roguelike"].some(
+      (target) => genre.toLowerCase() === target.toLowerCase()
+    )
+  );
+}
+
+function gameLooksDifficult(game: RecommendationGame) {
+  return game.genres?.some((genre) =>
+    ["Soulslike", "Roguelike", "Action"].some(
+      (target) => genre.toLowerCase() === target.toLowerCase()
+    )
+  );
+}
+
 export function scoreGames(
   games: RecommendationGame[],
   intent: ExtractedIntent,
@@ -258,6 +293,74 @@ export function scoreGames(
         );
       }
 
+      if (wantsStoryExperience(intent) && gameHasStoryGenre(game)) {
+        addScore(
+          "Story fit",
+          15,
+          "fits the story-focused experience you asked for"
+        );
+      }
+
+      if (preferences?.play_style === "story" && gameHasStoryGenre(game)) {
+        addScore(
+          "Play style match",
+          12,
+          "matches your story-focused play style preference"
+        );
+      }
+
+      if (preferences?.play_style === "gameplay" && gameHasGameplayGenre(game)) {
+        addScore(
+          "Play style match",
+          12,
+          "matches your gameplay-focused play style preference"
+        );
+      }
+
+      if (
+        preferences?.session_length_preference === "short" &&
+        getEstimatedPlaytime(game) <= 20
+      ) {
+        addScore(
+          "Session length preference",
+          10,
+          "matches your preference for shorter sessions"
+        );
+      }
+
+      if (
+        preferences?.session_length_preference === "long" &&
+        getEstimatedPlaytime(game) >= 45
+      ) {
+        addScore(
+          "Session length preference",
+          10,
+          "matches your preference for longer sessions"
+        );
+      }
+
+      if (
+        intent.difficultyPreference === "hard" &&
+        gameLooksDifficult(game)
+      ) {
+        addScore(
+          "Difficulty fit",
+          12,
+          "fits the challenging experience you asked for"
+        );
+      }
+
+      if (
+        intent.difficultyPreference === "easy" &&
+        gameLooksDifficult(game)
+      ) {
+        subtractScore(
+          "Difficulty mismatch",
+          12,
+          "may be more challenging than what you asked for"
+        );
+      }   
+      
       if (game.rating && game.rating >= 4.2) {
         addScore("Rating", 10, "has a strong rating");
       } else if (game.rating && game.rating >= 3.5) {
