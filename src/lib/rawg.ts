@@ -18,6 +18,10 @@ export type RawgGame = {
       }[]
     | null;
   playtime: number | null;
+  tags: {
+    id: number;
+    name: string;
+  }[];
 };
 
 type RawgSearchResponse = {

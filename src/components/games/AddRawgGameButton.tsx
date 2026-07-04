@@ -35,9 +35,11 @@ export default function AddRawgGameButton({
           background_image: game.background_image,
           released: game.released,
           rating: game.rating,
+          playtime: game.playtime,
           genres: game.genres?.map((genre) => genre.name) ?? [],
           platforms:
             game.platforms?.map((item) => item.platform.name) ?? [],
+          tags: game.tags?.map((tag) => tag.name) ?? [],
         },
         { onConflict: "rawg_id" }
       )

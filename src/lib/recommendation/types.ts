@@ -9,6 +9,7 @@ export type RecommendationGame = {
   genres: string[] | null;
   platforms?: string[] | null;
   playtime?: number | null;
+  tags?: string[] | null;
 };
 
 export type PreviousFeedback = {

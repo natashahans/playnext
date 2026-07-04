@@ -90,7 +90,8 @@ export default function RecommendPage() {
           rating,
           genres,
           platforms,
-          playtime
+          playtime,
+          tags
         )
       `)
       .eq("user_id", userData.user.id);

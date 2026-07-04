@@ -12,6 +12,16 @@ function hasMatch(values: string[] | null | undefined, target: string) {
   return values?.some((value) => value.toLowerCase() === target.toLowerCase());
 }
 
+function hasTag(game: RecommendationGame, tag: string) {
+  return game.tags?.some(
+    (item) => item.toLowerCase() === tag.toLowerCase()
+  );
+}
+
+function hasAnyTag(game: RecommendationGame, tags: string[]) {
+  return tags.some((tag) => hasTag(game, tag));
+}
+
 function hasAnyMatch(
   values: string[] | null | undefined,
   targets: string[] | null | undefined
@@ -113,10 +123,19 @@ function wantsStoryExperience(intent: ExtractedIntent) {
 }
 
 function gameHasStoryGenre(game: RecommendationGame) {
-  return game.genres?.some((genre) =>
-    ["Adventure", "RPG", "Story Rich", "Narrative"].some(
-      (target) => genre.toLowerCase() === target.toLowerCase()
-    )
+  return (
+    game.genres?.some((genre) =>
+      ["Adventure", "RPG"].some(
+        (target) => genre.toLowerCase() === target.toLowerCase()
+      )
+    ) ||
+    hasAnyTag(game, [
+      "Story Rich",
+      "Narrative",
+      "Choices Matter",
+      "Singleplayer",
+      "Atmospheric",
+    ])
   );
 }
 
@@ -129,10 +148,19 @@ function gameHasGameplayGenre(game: RecommendationGame) {
 }
 
 function gameLooksDifficult(game: RecommendationGame) {
-  return game.genres?.some((genre) =>
-    ["Soulslike", "Roguelike", "Action"].some(
-      (target) => genre.toLowerCase() === target.toLowerCase()
-    )
+  return (
+    game.genres?.some((genre) =>
+      ["Roguelike", "Action"].some(
+        (target) => genre.toLowerCase() === target.toLowerCase()
+      )
+    ) ||
+    hasAnyTag(game, [
+      "Difficult",
+      "Souls-like",
+      "Hardcore",
+      "Precision Platformer",
+      "Roguelite",
+    ])
   );
 }
 
