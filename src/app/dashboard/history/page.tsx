@@ -16,6 +16,11 @@ type HistoryItem = {
   games: {
     title: string;
   } | null;
+  feedback:
+    | {
+        feedback_type: string;
+      }[]
+    | null;
 };
 
 export default function HistoryPage() {
@@ -40,6 +45,9 @@ export default function HistoryPage() {
           ),
           recommendation_sessions (
             user_input
+          ),
+          feedback (
+            feedback_type
           )
         `)
         .eq("user_id", userData.user.id)
@@ -75,8 +83,11 @@ export default function HistoryPage() {
       </div>
 
       <div className="space-y-4">
-        {history.map((item) => (
-          <Card key={item.id}>
+        {history.map((item) => {
+          const feedback = item.feedback?.[0]?.feedback_type;
+
+          return (
+            <Card key={item.id}>
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold">
@@ -98,8 +109,16 @@ export default function HistoryPage() {
             <p className="mt-4 text-sm text-slate-500">
               {new Date(item.created_at).toLocaleString()}
             </p>
-          </Card>
-        ))}
+
+            <p className="mt-3 text-sm text-slate-400">
+              Feedback:{" "}
+              <span className="text-white">
+                {feedback ? feedback.replaceAll("_", " ") : "No feedback yet"}
+              </span>
+            </p>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
