@@ -80,6 +80,27 @@ function estimateSessionFit(game: RecommendationGame, availableTime: number | nu
   return null;
 }
 
+function wantsQuickSession(intent: ExtractedIntent) {
+  const text = intent.desiredExperience?.toLowerCase() ?? "";
+
+  return (
+    text.includes("quick") ||
+    text.includes("short") ||
+    text.includes("brief")
+  );
+}
+
+function wantsLongSession(intent: ExtractedIntent) {
+  const text = intent.desiredExperience?.toLowerCase() ?? "";
+
+  return (
+    text.includes("long") ||
+    text.includes("hours") ||
+    text.includes("deep") ||
+    text.includes("immersive")
+  );
+}
+
 export function scoreGames(
   games: RecommendationGame[],
   intent: ExtractedIntent,
@@ -200,6 +221,40 @@ export function scoreGames(
           "Platform match",
           8,
           "matches one of your preferred platforms"
+        );
+      }
+
+      const estimatedPlaytime = getEstimatedPlaytime(game);
+
+      if (wantsQuickSession(intent) && estimatedPlaytime <= 20) {
+        addScore(
+          "Quick session fit",
+          15,
+          "works well for a quick play session"
+        );
+      }
+
+      if (wantsQuickSession(intent) && estimatedPlaytime >= 40) {
+        subtractScore(
+          "Quick session mismatch",
+          15,
+          "may require more time than a quick session"
+        );
+      }
+
+      if (wantsLongSession(intent) && estimatedPlaytime >= 45) {
+        addScore(
+          "Long session fit",
+          15,
+          "suits a longer, more immersive session"
+        );
+      }
+
+      if (wantsLongSession(intent) && estimatedPlaytime <= 20) {
+        subtractScore(
+          "Long session mismatch",
+          10,
+          "may be too short for the deeper session you described"
         );
       }
 
