@@ -12,6 +12,7 @@ import type {
   ScoredGame,
   UserPreferences,
   ExtractedIntent,
+  PreviousRecommendation,
 } from "@/lib/recommendation/types";
 import { supabase } from "@/lib/supabase";
 
@@ -154,13 +155,27 @@ export default function RecommendPage() {
       .eq("user_id", userData.user.id)
       .single();
 
+    const { data: previousRecommendationData, error: previousRecommendationError } =
+      await supabase
+        .from("recommendations")
+        .select("game_id, created_at")
+        .eq("user_id", userData.user.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+    if (previousRecommendationError) {
+      alert(previousRecommendationError.message);
+      setLoading(false);
+      return;
+    } 
+      
     const scoredGames = scoreGames(
       games,
       intent,
       previousFeedback as PreviousFeedback[],
-      preferencesData as UserPreferences | null
+      preferencesData as UserPreferences | null,
+      (previousRecommendationData ?? []) as PreviousRecommendation[]
     );
-
     const bestGame = scoredGames[0];
 
     const { data: recommendationData, error: recommendationError } =

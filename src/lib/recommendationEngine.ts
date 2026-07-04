@@ -3,6 +3,7 @@ import type {
   ExtractedIntent,
   RecommendationGame,
   PreviousFeedback,
+  PreviousRecommendation,
   UserPreferences,
   ScoredGame,
 } from "@/lib/recommendation/types";
@@ -26,7 +27,8 @@ export function scoreGames(
   games: RecommendationGame[],
   intent: ExtractedIntent,
   previousFeedback: PreviousFeedback[] = [],
-  preferences: UserPreferences | null = null
+  preferences: UserPreferences | null = null,
+  previousRecommendations: PreviousRecommendation[] = []
 ): ScoredGame[] {
   return games
     .map((game) => {
@@ -138,6 +140,18 @@ export function scoreGames(
           "Previous positive feedback",
           positiveFeedbackCount * 8,
           "has been boosted because you previously liked it"
+        );
+      }
+
+      const timesRecentlyRecommended = previousRecommendations.filter(
+        (recommendation) => recommendation.game_id === game.id
+      ).length;
+
+      if (timesRecentlyRecommended > 0) {
+        subtractScore(
+          "Recently recommended penalty",
+          timesRecentlyRecommended * 10,
+          "was slightly reduced to avoid repeating the same recommendation too often"
         );
       }
 
