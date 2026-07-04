@@ -10,6 +10,7 @@ import {
   type PreviousFeedback,
   type RecommendationGame,
   type ScoredGame,
+  type UserPreferences,
 } from "@/lib/recommendationEngine";
 import { supabase } from "@/lib/supabase";
 import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
@@ -125,10 +126,17 @@ export default function RecommendPage() {
     };
     }).filter((item) => item.game_id);
 
+    const { data: preferencesData } = await supabase
+    .from("user_preferences")
+    .select("favorite_genres, difficulty_preference, session_length_preference")
+    .eq("user_id", userData.user.id)
+    .single();
+
     const scoredGames = scoreGames(
     games,
     intent,
-    previousFeedback as PreviousFeedback[]
+    previousFeedback as PreviousFeedback[],
+    preferencesData as UserPreferences | null
     );
     const bestGame = scoredGames[0];
 

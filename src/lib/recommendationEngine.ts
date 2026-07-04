@@ -12,6 +12,12 @@ export type PreviousFeedback = {
   feedback_type: string;
 };
 
+export type UserPreferences = {
+  favorite_genres: string[] | null;
+  difficulty_preference: string | null;
+  session_length_preference: string | null;
+};
+
 export type ScoredGame = RecommendationGame & {
   score: number;
   explanation: string;
@@ -20,7 +26,8 @@ export type ScoredGame = RecommendationGame & {
 export function scoreGames(
   games: RecommendationGame[],
   intent: ExtractedIntent,
-  previousFeedback: PreviousFeedback[] = []
+  previousFeedback: PreviousFeedback[] = [],
+  preferences: UserPreferences | null = null
 ): ScoredGame[] {
   return games
     .map((game) => {
@@ -38,6 +45,15 @@ export function scoreGames(
       if (intent.mood === "tired" && game.genres?.includes("Relaxing")) {
         score += 15;
         reasons.push("fits a low-energy mood");
+      }
+
+      if (
+        preferences?.favorite_genres?.some((genre) =>
+          game.genres?.includes(genre)
+        )
+      ) {
+        score += 15;
+        reasons.push("matches your saved genre preferences");
       }
 
       if (game.rating && game.rating >= 4) {
