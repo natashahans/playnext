@@ -1,3 +1,4 @@
+import { buildExplanation } from "@/lib/recommendation/explain";
 import type {
   ExtractedIntent,
   RecommendationGame,
@@ -146,10 +147,7 @@ export function scoreGames(
         ...game,
         score,
         scoreBreakdown,
-        explanation:
-          reasons.length > 0
-            ? `This looks like a strong fit because it ${reasons.join(", ")}.`
-            : "This is a balanced option from your collection based on your current context.",
+        explanation: buildExplanation(reasons),
       };
     })
     .sort((a, b) => b.score - a.score);
