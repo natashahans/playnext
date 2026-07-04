@@ -23,6 +23,24 @@ function hasAnyMatch(
   );
 }
 
+function hasRelaxingSignal(text: string | null | undefined) {
+  if (!text) return false;
+
+  const value = text.toLowerCase();
+
+  return ["relaxing", "relax", "chill", "calm", "cozy", "cosy", "peaceful"].some(
+    (word) => value.includes(word)
+  );
+}
+
+function gameHasRelaxingGenre(game: RecommendationGame) {
+  return game.genres?.some((genre) =>
+    ["Relaxing", "Simulation", "Casual", "Cozy", "Adventure"].some(
+      (target) => genre.toLowerCase() === target.toLowerCase()
+    )
+  );
+}
+
 export function scoreGames(
   games: RecommendationGame[],
   intent: ExtractedIntent,
@@ -53,10 +71,17 @@ export function scoreGames(
         intent.desiredExperience !== "unknown" &&
         hasMatch(game.genres, intent.desiredExperience)
       ) {
+        addScore("Desired experience match", 20, "matches your desired experience");
+      }
+
+      if (
+        hasRelaxingSignal(intent.desiredExperience) &&
+        gameHasRelaxingGenre(game)
+      ) {
         addScore(
-          "Desired experience match",
+          "Relaxing/cozy fit",
           20,
-          "matches your desired experience"
+          "fits the relaxing or cozy experience you asked for"
         );
       }
 
@@ -64,10 +89,7 @@ export function scoreGames(
         addScore("Mood match", 15, "fits a low-energy mood");
       }
 
-      if (
-        intent.energyLevel === "low" &&
-        (hasMatch(game.genres, "Relaxing") || hasMatch(game.genres, "Simulation"))
-      ) {
+      if (intent.energyLevel === "low" && gameHasRelaxingGenre(game)) {
         addScore("Energy fit", 15, "suits a lower-energy session");
       }
 
@@ -106,10 +128,7 @@ export function scoreGames(
         addScore("Rating", 5, "has a decent rating");
       }
 
-      if (
-        intent.difficultyPreference === "easy" &&
-        (hasMatch(game.genres, "Relaxing") || hasMatch(game.genres, "Simulation"))
-      ) {
+      if (intent.difficultyPreference === "easy" && gameHasRelaxingGenre(game)) {
         addScore("Difficulty fit", 10, "seems suitable for an easier session");
       }
 
