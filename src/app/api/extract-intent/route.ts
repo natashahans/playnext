@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const result = await model.generateContent(`
 You extract structured intent for a game recommendation system.
 
-Return ONLY valid JSON. No markdown.
+Return ONLY valid JSON. No markdown. No explanation.
 
 Use this schema:
 {
@@ -26,6 +26,21 @@ Use this schema:
   "preferredGenres": [],
   "referenceGames": []
 }
+
+Rules for availableTime:
+- Always return time in minutes.
+- "20 minutes" = 20
+- "half an hour" = 30
+- "an hour" = 60
+- "couple of hours" = 120
+- "few hours" = 180
+- "all evening" = 240
+- "all day" = 480
+- If no clear time is mentioned, return null.
+- Do NOT return 3 for "few hours". Return 180.
+
+Rules for desiredExperience:
+- Keep useful phrases like "quick", "short session", "deep and immersive", "relaxing", "cozy", "story", "challenging".
 
 User input:
 ${prompt}
