@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import { supabase } from "@/lib/supabase";
+import RemoveGameButton from "@/components/games/RemoveGameButton";
 
 type GameDetails = {
   id: string;
@@ -125,6 +126,8 @@ export default function CollectionPage() {
                   <p className="mt-4 text-sm text-slate-400">
                     Rating: {game?.rating ?? "N/A"}
                   </p>
+
+                  <RemoveGameButton userGameId={item.id} />
                 </div>
               </Card>
             );
