@@ -41,6 +41,45 @@ function gameHasRelaxingGenre(game: RecommendationGame) {
   );
 }
 
+function getEstimatedPlaytime(game: RecommendationGame) {
+  if (game.playtime) return game.playtime;
+
+  if (hasMatch(game.genres, "Roguelike")) return 10;
+  if (hasMatch(game.genres, "Platformer")) return 15;
+  if (hasMatch(game.genres, "Puzzle")) return 15;
+  if (hasMatch(game.genres, "Casual")) return 15;
+  if (hasMatch(game.genres, "Simulation")) return 25;
+  if (hasMatch(game.genres, "Relaxing")) return 25;
+  if (hasMatch(game.genres, "Shooter")) return 35;
+  if (hasMatch(game.genres, "Action")) return 40;
+  if (hasMatch(game.genres, "RPG")) return 60;
+  if (hasMatch(game.genres, "Adventure")) return 45;
+
+  return 30;
+}
+
+function estimateSessionFit(game: RecommendationGame, availableTime: number | null) {
+  if (!availableTime) return null;
+
+  const estimatedPlaytime = getEstimatedPlaytime(game);
+
+  if (availableTime <= 30) {
+    if (estimatedPlaytime <= 10) return "short-good";
+    if (estimatedPlaytime >= 40) return "short-bad";
+  }
+
+  if (availableTime <= 60) {
+    if (estimatedPlaytime <= 25) return "medium-good";
+    if (estimatedPlaytime >= 60) return "medium-bad";
+  }
+
+  if (availableTime >= 120) {
+    if (estimatedPlaytime >= 30) return "long-good";
+  }
+
+  return null;
+}
+
 export function scoreGames(
   games: RecommendationGame[],
   intent: ExtractedIntent,
@@ -98,6 +137,48 @@ export function scoreGames(
         (hasMatch(game.genres, "Action") || hasMatch(game.genres, "Shooter"))
       ) {
         addScore("Energy fit", 15, "fits a high-energy session");
+      }
+
+      const sessionFit = estimateSessionFit(game, intent.availableTime);
+
+      if (sessionFit === "short-good") {
+        addScore(
+          "Time fit",
+          15,
+          "works well for the short amount of time you have"
+        );
+      }
+
+      if (sessionFit === "short-bad") {
+        subtractScore(
+          "Time mismatch",
+          18,
+          "may be too large for the short session you described"
+        );
+      }
+
+      if (sessionFit === "medium-good") {
+        addScore(
+          "Time fit",
+          10,
+          "fits reasonably well into your available time"
+        );
+      }
+
+      if (sessionFit === "medium-bad") {
+        subtractScore(
+          "Time mismatch",
+          10,
+          "may be too long for the time you have right now"
+        );
+      }
+
+      if (sessionFit === "long-good") {
+        addScore(
+          "Time fit",
+          10,
+          "fits a longer play session"
+        );
       }
 
       if (

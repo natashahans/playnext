@@ -17,6 +17,7 @@ export type RawgGame = {
         };
       }[]
     | null;
+  playtime: number | null;
 };
 
 type RawgSearchResponse = {

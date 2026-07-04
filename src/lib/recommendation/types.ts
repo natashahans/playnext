@@ -8,6 +8,7 @@ export type RecommendationGame = {
   rating: number | null;
   genres: string[] | null;
   platforms?: string[] | null;
+  playtime?: number | null;
 };
 
 export type PreviousFeedback = {
