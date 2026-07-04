@@ -3,8 +3,18 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default function AddGameButton({ gameId }: { gameId: string }) {
-  const [added, setAdded] = useState(false);
+type AddGameButtonProps = {
+  gameId: string;
+  alreadyAdded?: boolean;
+  onAdded?: () => void;
+};
+
+export default function AddGameButton({
+  gameId,
+  alreadyAdded = false,
+  onAdded,
+}: AddGameButtonProps) {
+  const [added, setAdded] = useState(alreadyAdded);
   const [loading, setLoading] = useState(false);
 
   async function handleAddGame() {
@@ -37,6 +47,7 @@ export default function AddGameButton({ gameId }: { gameId: string }) {
     }
 
     setAdded(true);
+    onAdded?.();
     setLoading(false);
   }
 
@@ -44,7 +55,7 @@ export default function AddGameButton({ gameId }: { gameId: string }) {
     <button
       onClick={handleAddGame}
       disabled={loading || added}
-      className="mt-4 w-full rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+      className="mt-4 w-full rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
     >
       {added ? "Added to collection" : loading ? "Adding..." : "Add to collection"}
     </button>
