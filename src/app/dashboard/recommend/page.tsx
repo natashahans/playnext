@@ -4,7 +4,7 @@ import { useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import { mockExtractIntent, type ExtractedIntent } from "@/lib/mockIntentExtraction";
+import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
 import {
   scoreGames,
   type PreviousFeedback,
@@ -13,7 +13,7 @@ import {
   type UserPreferences,
 } from "@/lib/recommendationEngine";
 import { supabase } from "@/lib/supabase";
-import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
+import type { ExtractedIntent } from "@/types/intent";
 
 type UserGameRow = {
   games: RecommendationGame | RecommendationGame[] | null;
@@ -23,8 +23,11 @@ export default function RecommendPage() {
   const [prompt, setPrompt] = useState("");
   const [submittedPrompt, setSubmittedPrompt] = useState("");
   const [loading, setLoading] = useState(false);
-  const [extractedIntent, setExtractedIntent] = useState<ExtractedIntent | null>(null);
-  const [recommendedGame, setRecommendedGame] = useState<ScoredGame | null>(null);
+  const [extractedIntent, setExtractedIntent] =
+    useState<ExtractedIntent | null>(null);
+  const [recommendedGame, setRecommendedGame] = useState<ScoredGame | null>(
+    null
+  );
   const [recommendationId, setRecommendationId] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -39,7 +42,21 @@ export default function RecommendPage() {
       return;
     }
 
-    const intent = mockExtractIntent(prompt);
+    const intentResponse = await fetch("/api/extract-intent", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt }),
+    });
+
+    if (!intentResponse.ok) {
+      alert("AI intent extraction failed.");
+      setLoading(false);
+      return;
+    }
+
+    const intent: ExtractedIntent = await intentResponse.json();
 
     const { data: sessionData, error: sessionError } = await supabase
       .from("recommendation_sessions")
@@ -94,72 +111,77 @@ export default function RecommendPage() {
     }
 
     const { data: feedbackData, error: feedbackError } = await supabase
-    .from("feedback")
-    .select(`
+      .from("feedback")
+      .select(`
         feedback_type,
         recommendations (
-        game_id
+          game_id
         )
-    `)
-    .eq("user_id", userData.user.id);
+      `)
+      .eq("user_id", userData.user.id);
 
     if (feedbackError) {
-    alert(feedbackError.message);
-    setLoading(false);
-    return;
+      alert(feedbackError.message);
+      setLoading(false);
+      return;
     }
 
-    const previousFeedback = ((feedbackData ?? []) as unknown as {
-    feedback_type: string;
-    recommendations:
-        | { game_id: string }
-        | { game_id: string }[]
-        | null;
-    }[]).map((item) => {
-    const recommendation = Array.isArray(item.recommendations)
-        ? item.recommendations[0]
-        : item.recommendations;
+    const previousFeedback = (
+      (feedbackData ?? []) as unknown as {
+        feedback_type: string;
+        recommendations:
+          | { game_id: string }
+          | { game_id: string }[]
+          | null;
+      }[]
+    )
+      .map((item) => {
+        const recommendation = Array.isArray(item.recommendations)
+          ? item.recommendations[0]
+          : item.recommendations;
 
-    return {
-        game_id: recommendation?.game_id ?? "",
-        feedback_type: item.feedback_type,
-    };
-    }).filter((item) => item.game_id);
+        return {
+          game_id: recommendation?.game_id ?? "",
+          feedback_type: item.feedback_type,
+        };
+      })
+      .filter((item) => item.game_id);
 
     const { data: preferencesData } = await supabase
-    .from("user_preferences")
-    .select("favorite_genres, difficulty_preference, session_length_preference")
-    .eq("user_id", userData.user.id)
-    .single();
+      .from("user_preferences")
+      .select("favorite_genres, difficulty_preference, session_length_preference")
+      .eq("user_id", userData.user.id)
+      .single();
 
     const scoredGames = scoreGames(
-    games,
-    intent,
-    previousFeedback as PreviousFeedback[],
-    preferencesData as UserPreferences | null
+      games,
+      intent,
+      previousFeedback as PreviousFeedback[],
+      preferencesData as UserPreferences | null
     );
+
     const bestGame = scoredGames[0];
 
-    const { data: recommendationData, error: recommendationError } = await supabase
-    .from("recommendations")
-    .insert({
-        session_id: sessionData.id,
-        user_id: userData.user.id,
-        game_id: bestGame.id,
-        score: bestGame.score,
-        explanation: bestGame.explanation,
-    })
-    .select("id")
-    .single();
+    const { data: recommendationData, error: recommendationError } =
+      await supabase
+        .from("recommendations")
+        .insert({
+          session_id: sessionData.id,
+          user_id: userData.user.id,
+          game_id: bestGame.id,
+          score: bestGame.score,
+          explanation: bestGame.explanation,
+        })
+        .select("id")
+        .single();
 
     if (recommendationError) {
-    alert(recommendationError.message);
-    setLoading(false);
-    return;
+      alert(recommendationError.message);
+      setLoading(false);
+      return;
     }
 
     setRecommendationId(recommendationData.id);
-
     setSubmittedPrompt(prompt);
     setExtractedIntent(intent);
     setRecommendedGame(bestGame);
@@ -196,8 +218,8 @@ export default function RecommendPage() {
           What should I play right now?
         </h1>
         <p className="mt-3 max-w-2xl text-slate-400">
-          Describe your mood, time, energy, and desired experience. PlayNext
-          extracts your intent and scores games from your saved collection.
+          Describe your mood, time, energy, and desired experience. Gemini
+          extracts your intent, then PlayNext scores games from your collection.
         </p>
       </div>
 
@@ -230,7 +252,7 @@ export default function RecommendPage() {
                 </h2>
               </div>
 
-              <Badge>Mock extraction</Badge>
+              <Badge>Gemini extraction</Badge>
             </div>
 
             <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-300">
@@ -273,13 +295,13 @@ export default function RecommendPage() {
             </div>
 
             <p className="mt-5 text-sm text-slate-500">
-              This recommendation was selected by the custom scoring engine, not
-              directly by AI.
+              Gemini extracts intent. The final recommendation is selected by
+              the custom PlayNext scoring engine.
             </p>
 
             {recommendationId && (
-            <FeedbackButtons recommendationId={recommendationId} />
-            )}            
+              <FeedbackButtons recommendationId={recommendationId} />
+            )}
           </Card>
         </div>
       )}

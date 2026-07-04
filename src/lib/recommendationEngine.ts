@@ -1,4 +1,4 @@
-import type { ExtractedIntent } from "@/lib/mockIntentExtraction";
+import type { ExtractedIntent } from "@/types/intent";
 
 export type RecommendationGame = {
   id: string;
