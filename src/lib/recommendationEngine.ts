@@ -22,6 +22,34 @@ function hasAnyTag(game: RecommendationGame, tags: string[]) {
   return tags.some((tag) => hasTag(game, tag));
 }
 
+function hasTagSignal(game: RecommendationGame, tags: string[]) {
+  return hasAnyTag(game, tags);
+}
+
+function wantsAtmosphericExperience(intent: ExtractedIntent) {
+  const text = intent.desiredExperience?.toLowerCase() ?? "";
+
+  return (
+    text.includes("atmospheric") ||
+    text.includes("vibe") ||
+    text.includes("immersive") ||
+    text.includes("mysterious") ||
+    text.includes("exploration")
+  );
+}
+
+function wantsHorrorExperience(intent: ExtractedIntent) {
+  const text = intent.desiredExperience?.toLowerCase() ?? "";
+
+  return (
+    text.includes("horror") ||
+    text.includes("scary") ||
+    text.includes("creepy") ||
+    text.includes("dark") ||
+    text.includes("tense")
+  );
+}
+
 function hasAnyMatch(
   values: string[] | null | undefined,
   targets: string[] | null | undefined
@@ -387,8 +415,52 @@ export function scoreGames(
           12,
           "may be more challenging than what you asked for"
         );
-      }   
-      
+      }
+
+      if (
+        wantsAtmosphericExperience(intent) &&
+        hasTagSignal(game, ["Atmospheric", "Exploration", "Open World", "Mystery"])
+      ) {
+        addScore(
+          "Atmospheric tag match",
+          15,
+          "matches the atmospheric or exploratory experience you described"
+        );
+      }
+
+      if (
+        wantsHorrorExperience(intent) &&
+        hasTagSignal(game, ["Horror", "Survival Horror", "Dark", "Psychological Horror"])
+      ) {
+        addScore(
+          "Horror tag match",
+          15,
+          "matches the darker or more tense experience you asked for"
+        );
+      }
+
+      if (
+        hasTagSignal(game, ["Story Rich", "Choices Matter", "Narrative"]) &&
+        wantsStoryExperience(intent)
+      ) {
+        addScore(
+          "Story tag match",
+          15,
+          "has story-focused tags that match your request"
+        );
+      }
+
+      if (
+        hasTagSignal(game, ["Difficult", "Souls-like", "Hardcore"]) &&
+        intent.difficultyPreference === "hard"
+      ) {
+        addScore(
+          "Difficulty tag match",
+          15,
+          "has difficulty-related tags that match your challenge preference"
+        );
+      }
+
       if (game.rating && game.rating >= 4.2) {
         addScore("Rating", 10, "has a strong rating");
       } else if (game.rating && game.rating >= 3.5) {
