@@ -5,15 +5,15 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
-import {
-  scoreGames,
-  type PreviousFeedback,
-  type RecommendationGame,
-  type ScoredGame,
-  type UserPreferences,
-} from "@/lib/recommendationEngine";
+import { scoreGames } from "@/lib/recommendationEngine";
+import type {
+  PreviousFeedback,
+  RecommendationGame,
+  ScoredGame,
+  UserPreferences,
+  ExtractedIntent,
+} from "@/lib/recommendation/types";
 import { supabase } from "@/lib/supabase";
-import type { ExtractedIntent } from "@/types/intent";
 
 type UserGameRow = {
   games: RecommendationGame | RecommendationGame[] | null;

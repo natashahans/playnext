@@ -1,34 +1,10 @@
-import type { ExtractedIntent } from "@/types/intent";
-
-export type RecommendationGame = {
-  id: string;
-  title: string;
-  rating: number | null;
-  genres: string[] | null;
-  platforms?: string[] | null;
-};
-
-export type PreviousFeedback = {
-  game_id: string;
-  feedback_type: string;
-};
-
-export type UserPreferences = {
-  favorite_genres: string[] | null;
-  preferred_platforms?: string[] | null;
-  play_style?: string | null;
-  difficulty_preference: string | null;
-  session_length_preference: string | null;
-};
-
-export type ScoredGame = RecommendationGame & {
-  score: number;
-  explanation: string;
-  scoreBreakdown: {
-    label: string;
-    points: number;
-  }[];
-};
+import type {
+  ExtractedIntent,
+  RecommendationGame,
+  PreviousFeedback,
+  UserPreferences,
+  ScoredGame,
+} from "@/lib/recommendation/types";
 
 function hasMatch(values: string[] | null | undefined, target: string) {
   return values?.some((value) => value.toLowerCase() === target.toLowerCase());
