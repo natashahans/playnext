@@ -4,14 +4,39 @@ import { useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import { supabase } from "@/lib/supabase";
 
 export default function RecommendPage() {
   const [prompt, setPrompt] = useState("");
   const [submittedPrompt, setSubmittedPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setLoading(true);
+
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData.user) {
+      alert("You must be logged in.");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.from("recommendation_sessions").insert({
+      user_id: userData.user.id,
+      user_input: prompt,
+    });
+
+    if (error) {
+      alert(error.message);
+      setLoading(false);
+      return;
+    }
+
     setSubmittedPrompt(prompt);
+    setPrompt("");
+    setLoading(false);
   }
 
   return (
@@ -42,7 +67,7 @@ export default function RecommendPage() {
             required
           />
 
-          <Button>Continue</Button>
+          <Button>{loading ? "Saving..." : "Continue"}</Button>
         </form>
       </Card>
 
@@ -50,13 +75,13 @@ export default function RecommendPage() {
         <Card>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-slate-400">Captured input</p>
+              <p className="text-sm text-slate-400">Saved session</p>
               <h2 className="mt-2 text-xl font-semibold">
-                User context received
+                User context saved
               </h2>
             </div>
 
-            <Badge>AI extraction later</Badge>
+            <Badge>Stored in Supabase</Badge>
           </div>
 
           <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-300">
