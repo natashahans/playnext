@@ -39,7 +39,10 @@ export default function AddRawgGameButton({
           genres: game.genres?.map((genre) => genre.name) ?? [],
           platforms:
             game.platforms?.map((item) => item.platform.name) ?? [],
-          tags: game.tags?.map((tag) => tag.name) ?? [],
+          tags:
+            game.tags
+              ?.filter((tag) => /^[\x00-\x7F\s\-':,&()]+$/.test(tag.name))
+              .map((tag) => tag.name) ?? [],
         },
         { onConflict: "rawg_id" }
       )
