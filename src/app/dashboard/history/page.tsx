@@ -21,6 +21,12 @@ type HistoryItem = {
         feedback_type: string;
       }[]
     | null;
+  score_breakdown:
+    | {
+        label: string;
+        points: number;
+      }[]
+    | null;
 };
 
 export default function HistoryPage() {
@@ -40,6 +46,7 @@ export default function HistoryPage() {
           created_at,
           score,
           explanation,
+          score_breakdown,
           games (
             title
           ),
@@ -116,6 +123,27 @@ export default function HistoryPage() {
                 {feedback ? feedback.replaceAll("_", " ") : "No feedback yet"}
               </span>
             </p>
+
+            {item.score_breakdown && item.score_breakdown.length > 0 && (
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {item.score_breakdown.map((scoreItem) => (
+                  <div
+                    key={scoreItem.label}
+                    className="rounded-lg border border-slate-800 bg-slate-950 p-3"
+                  >
+                    <p className="text-xs text-slate-500">{scoreItem.label}</p>
+                    <p
+                      className={`mt-1 text-sm font-medium ${
+                        scoreItem.points >= 0 ? "text-emerald-400" : "text-red-400"
+                      }`}
+                    >
+                      {scoreItem.points >= 0 ? "+" : ""}
+                      {scoreItem.points}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
             </Card>
           );
         })}
