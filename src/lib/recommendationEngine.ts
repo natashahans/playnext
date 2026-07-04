@@ -77,7 +77,7 @@ export function scoreGames(
 
       if (negativeFeedbackCount > 0) {
         score -= negativeFeedbackCount * 20;
-        reasons.push("was penalised because of previous negative feedback");
+        reasons.push("has been adjusted based on your previous feedback");
       }
 
       if (positiveFeedbackCount > 0) {
@@ -91,9 +91,9 @@ export function scoreGames(
         ...game,
         score,
         explanation:
-          reasons.length > 0
-            ? `Recommended because it ${reasons.join(", ")}.`
-            : "Recommended as a balanced option from your collection.",
+        reasons.length > 0
+            ? `This looks like a strong fit because it ${reasons.join(", ")}.`
+            : "This is a balanced option from your collection based on your current context.",
       };
     })
     .sort((a, b) => b.score - a.score);
