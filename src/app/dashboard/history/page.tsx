@@ -1,71 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
 import { supabase } from "@/lib/supabase";
 
 type HistoryItem = {
   id: string;
-  user_input: string;
-  mood: string | null;
-  available_time: number | null;
-  energy_level: string | null;
-  desired_experience: string | null;
-  difficulty_preference: string | null;
   created_at: string;
-  recommendations:
-    | {
-        score: number;
-        explanation: string | null;
-        games:
-          | {
-              title: string;
-              background_image: string | null;
-              genres: string[] | null;
-            }
-          | {
-              title: string;
-              background_image: string | null;
-              genres: string[] | null;
-            }[]
-          | null;
-      }[]
-    | null;
+  score: number;
+  explanation: string;
+  recommendation_sessions: {
+    user_input: string;
+  } | null;
+  games: {
+    title: string;
+  } | null;
 };
 
 export default function HistoryPage() {
-  const [sessions, setSessions] = useState<HistoryItem[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchHistory() {
       const { data: userData } = await supabase.auth.getUser();
 
-      if (!userData.user) {
-        setLoading(false);
-        return;
-      }
+      if (!userData.user) return;
 
       const { data, error } = await supabase
-        .from("recommendation_sessions")
+        .from("recommendations")
         .select(`
           id,
-          user_input,
-          mood,
-          available_time,
-          energy_level,
-          desired_experience,
-          difficulty_preference,
           created_at,
-          recommendations (
-            score,
-            explanation,
-            games (
-              title,
-              background_image,
-              genres
-            )
+          score,
+          explanation,
+          games (
+            title
+          ),
+          recommendation_sessions (
+            user_input
           )
         `)
         .eq("user_id", userData.user.id)
@@ -77,7 +51,7 @@ export default function HistoryPage() {
         return;
       }
 
-      setSessions((data ?? []) as unknown as HistoryItem[]);
+      setHistory((data ?? []) as unknown as HistoryItem[]);
       setLoading(false);
     }
 
@@ -92,89 +66,41 @@ export default function HistoryPage() {
     <div className="space-y-6">
       <div>
         <p className="text-sm text-slate-400">History</p>
-        <h1 className="mt-2 text-3xl font-bold">Recommendation history</h1>
-        <p className="mt-3 max-w-2xl text-slate-400">
-          Review previous decision-support sessions, extracted context, and the
-          game PlayNext selected.
+        <h1 className="mt-2 text-3xl font-bold">
+          Recommendation history
+        </h1>
+        <p className="mt-3 text-slate-400">
+          Every recommendation you've received.
         </p>
       </div>
 
-      {sessions.length === 0 ? (
-        <Card>
-          <h2 className="text-xl font-semibold">No sessions yet</h2>
-          <p className="mt-2 text-slate-400">
-            Start a recommendation session to create your first history entry.
-          </p>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {sessions.map((session) => {
-            const recommendation = session.recommendations?.[0];
-            const game = Array.isArray(recommendation?.games)
-              ? recommendation?.games[0]
-              : recommendation?.games;
+      <div className="space-y-4">
+        {history.map((item) => (
+          <Card key={item.id}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {item.games?.title}
+                </h2>
 
-            return (
-              <Card key={session.id}>
-                <div className="grid gap-5 lg:grid-cols-[180px_1fr]">
-                  {game?.background_image ? (
-                    <img
-                      src={game.background_image}
-                      alt={game.title}
-                      className="h-48 w-full rounded-xl object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-48 items-center justify-center rounded-xl border border-slate-800 bg-slate-950 text-slate-500">
-                      No image
-                    </div>
-                  )}
+                <p className="mt-2 text-slate-400">
+                  "{item.recommendation_sessions?.user_input}"
+                </p>
+              </div>
 
-                  <div>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-sm text-slate-400">
-                          {new Date(session.created_at).toLocaleString()}
-                        </p>
+              <Badge>{item.score}% fit</Badge>
+            </div>
 
-                        <h2 className="mt-2 text-xl font-semibold">
-                          {game?.title ?? "No recommendation saved"}
-                        </h2>
-                      </div>
+            <p className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-300">
+              {item.explanation}
+            </p>
 
-                      {recommendation && (
-                        <Badge>{recommendation.score}% fit</Badge>
-                      )}
-                    </div>
-
-                    <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300">
-                      “{session.user_input}”
-                    </p>
-
-                    {recommendation?.explanation && (
-                      <p className="mt-4 text-sm leading-6 text-slate-400">
-                        {recommendation.explanation}
-                      </p>
-                    )}
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Badge>{session.mood ?? "Mood pending"}</Badge>
-                      <Badge>
-                        {session.available_time
-                          ? `${session.available_time} min`
-                          : "Time pending"}
-                      </Badge>
-                      <Badge>{session.energy_level ?? "Energy pending"}</Badge>
-                      <Badge>
-                        {session.desired_experience ?? "Experience pending"}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+            <p className="mt-4 text-sm text-slate-500">
+              {new Date(item.created_at).toLocaleString()}
+            </p>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
