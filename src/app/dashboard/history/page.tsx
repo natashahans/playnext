@@ -5,7 +5,7 @@ import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import { supabase } from "@/lib/supabase";
 
-type RecommendationSession = {
+type HistoryItem = {
   id: string;
   user_input: string;
   mood: string | null;
@@ -14,10 +14,28 @@ type RecommendationSession = {
   desired_experience: string | null;
   difficulty_preference: string | null;
   created_at: string;
+  recommendations:
+    | {
+        score: number;
+        explanation: string | null;
+        games:
+          | {
+              title: string;
+              background_image: string | null;
+              genres: string[] | null;
+            }
+          | {
+              title: string;
+              background_image: string | null;
+              genres: string[] | null;
+            }[]
+          | null;
+      }[]
+    | null;
 };
 
 export default function HistoryPage() {
-  const [sessions, setSessions] = useState<RecommendationSession[]>([]);
+  const [sessions, setSessions] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,7 +49,25 @@ export default function HistoryPage() {
 
       const { data, error } = await supabase
         .from("recommendation_sessions")
-        .select("*")
+        .select(`
+          id,
+          user_input,
+          mood,
+          available_time,
+          energy_level,
+          desired_experience,
+          difficulty_preference,
+          created_at,
+          recommendations (
+            score,
+            explanation,
+            games (
+              title,
+              background_image,
+              genres
+            )
+          )
+        `)
         .eq("user_id", userData.user.id)
         .order("created_at", { ascending: false });
 
@@ -41,7 +77,7 @@ export default function HistoryPage() {
         return;
       }
 
-      setSessions((data ?? []) as RecommendationSession[]);
+      setSessions((data ?? []) as unknown as HistoryItem[]);
       setLoading(false);
     }
 
@@ -58,8 +94,8 @@ export default function HistoryPage() {
         <p className="text-sm text-slate-400">History</p>
         <h1 className="mt-2 text-3xl font-bold">Recommendation history</h1>
         <p className="mt-3 max-w-2xl text-slate-400">
-          Previous decision-support sessions are stored here so users can review
-          what they asked for and how their preferences changed over time.
+          Review previous decision-support sessions, extracted context, and the
+          game PlayNext selected.
         </p>
       </div>
 
@@ -72,62 +108,71 @@ export default function HistoryPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {sessions.map((session) => (
-            <Card key={session.id}>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm text-slate-400">
-                    {new Date(session.created_at).toLocaleString()}
-                  </p>
+          {sessions.map((session) => {
+            const recommendation = session.recommendations?.[0];
+            const game = Array.isArray(recommendation?.games)
+              ? recommendation?.games[0]
+              : recommendation?.games;
 
-                  <h2 className="mt-2 text-xl font-semibold">
-                    “{session.user_input}”
-                  </h2>
+            return (
+              <Card key={session.id}>
+                <div className="grid gap-5 lg:grid-cols-[180px_1fr]">
+                  {game?.background_image ? (
+                    <img
+                      src={game.background_image}
+                      alt={game.title}
+                      className="h-48 w-full rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-48 items-center justify-center rounded-xl border border-slate-800 bg-slate-950 text-slate-500">
+                      No image
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm text-slate-400">
+                          {new Date(session.created_at).toLocaleString()}
+                        </p>
+
+                        <h2 className="mt-2 text-xl font-semibold">
+                          {game?.title ?? "No recommendation saved"}
+                        </h2>
+                      </div>
+
+                      {recommendation && (
+                        <Badge>{recommendation.score}% fit</Badge>
+                      )}
+                    </div>
+
+                    <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300">
+                      “{session.user_input}”
+                    </p>
+
+                    {recommendation?.explanation && (
+                      <p className="mt-4 text-sm leading-6 text-slate-400">
+                        {recommendation.explanation}
+                      </p>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Badge>{session.mood ?? "Mood pending"}</Badge>
+                      <Badge>
+                        {session.available_time
+                          ? `${session.available_time} min`
+                          : "Time pending"}
+                      </Badge>
+                      <Badge>{session.energy_level ?? "Energy pending"}</Badge>
+                      <Badge>
+                        {session.desired_experience ?? "Experience pending"}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-
-                <Badge>Session</Badge>
-              </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <p className="text-xs text-slate-500">Mood</p>
-                  <p className="mt-1 text-sm text-slate-300">
-                    {session.mood ?? "Pending"}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <p className="text-xs text-slate-500">Time</p>
-                  <p className="mt-1 text-sm text-slate-300">
-                    {session.available_time
-                      ? `${session.available_time} min`
-                      : "Pending"}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <p className="text-xs text-slate-500">Energy</p>
-                  <p className="mt-1 text-sm text-slate-300">
-                    {session.energy_level ?? "Pending"}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <p className="text-xs text-slate-500">Experience</p>
-                  <p className="mt-1 text-sm text-slate-300">
-                    {session.desired_experience ?? "Pending"}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                  <p className="text-xs text-slate-500">Difficulty</p>
-                  <p className="mt-1 text-sm text-slate-300">
-                    {session.difficulty_preference ?? "Pending"}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
