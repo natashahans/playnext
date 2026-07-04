@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import { mockExtractIntent, type ExtractedIntent } from "@/lib/mockIntentExtraction";
 import { scoreGames, type RecommendationGame, type ScoredGame } from "@/lib/recommendationEngine";
 import { supabase } from "@/lib/supabase";
+import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
 
 type UserGameRow = {
   games: RecommendationGame | RecommendationGame[] | null;
@@ -18,6 +19,7 @@ export default function RecommendPage() {
   const [loading, setLoading] = useState(false);
   const [extractedIntent, setExtractedIntent] = useState<ExtractedIntent | null>(null);
   const [recommendedGame, setRecommendedGame] = useState<ScoredGame | null>(null);
+  const [recommendationId, setRecommendationId] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,21 +90,25 @@ export default function RecommendPage() {
     const scoredGames = scoreGames(games, intent);
     const bestGame = scoredGames[0];
 
-    const { error: recommendationError } = await supabase
-      .from("recommendations")
-      .insert({
+    const { data: recommendationData, error: recommendationError } = await supabase
+    .from("recommendations")
+    .insert({
         session_id: sessionData.id,
         user_id: userData.user.id,
         game_id: bestGame.id,
         score: bestGame.score,
         explanation: bestGame.explanation,
-      });
+    })
+    .select("id")
+    .single();
 
     if (recommendationError) {
-      alert(recommendationError.message);
-      setLoading(false);
-      return;
+    alert(recommendationError.message);
+    setLoading(false);
+    return;
     }
+
+    setRecommendationId(recommendationData.id);
 
     setSubmittedPrompt(prompt);
     setExtractedIntent(intent);
@@ -220,6 +226,10 @@ export default function RecommendPage() {
               This recommendation was selected by the custom scoring engine, not
               directly by AI.
             </p>
+
+            {recommendationId && (
+            <FeedbackButtons recommendationId={recommendationId} />
+            )}            
           </Card>
         </div>
       )}
