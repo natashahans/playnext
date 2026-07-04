@@ -4,7 +4,13 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { RawgGame } from "@/lib/rawg";
 
-export default function AddRawgGameButton({ game }: { game: RawgGame }) {
+export default function AddRawgGameButton({
+  game,
+  onAdded,
+}: {
+  game: RawgGame;
+  onAdded?: () => void;
+}) {
   const [added, setAdded] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -65,6 +71,7 @@ export default function AddRawgGameButton({ game }: { game: RawgGame }) {
     }
 
     setAdded(true);
+    onAdded?.();
     setLoading(false);
   }
 

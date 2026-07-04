@@ -56,18 +56,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({ onboarding_completed: true })
-      .eq("id", userData.user.id);
-
-    if (profileError) {
-      alert(profileError.message);
-      setLoading(false);
-      return;
-    }
-
-    router.push("/dashboard/search");
+    router.push("/onboarding/add-games");
   }
 
   return (
