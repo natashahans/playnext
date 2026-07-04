@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 const navItems = [
-  { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard", label: "Home" },
   { href: "/dashboard/collection", label: "My Collection" },
   { href: "/dashboard/search", label: "Add Games" },
-  { href: "/dashboard/recommend", label: "PlayNext" },
+  { href: "/dashboard/recommend", label: "Decide" },
   { href: "/dashboard/history", label: "History" },
   { href: "/dashboard/settings", label: "Settings" },
 ];
@@ -17,7 +17,7 @@ export default function Sidebar() {
       </Link>
 
       <p className="mt-2 text-xs text-slate-500">
-        Decision-support system
+        Decide what to play next.
       </p>
 
       <nav className="mt-8 space-y-1">

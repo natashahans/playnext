@@ -15,9 +15,9 @@ export default function Topbar() {
   return (
     <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-slate-950 px-6">
       <div>
-        <p className="text-sm font-medium text-white">PlayNext Dashboard</p>
+        <p className="text-sm font-medium text-white">Home</p>
         <p className="text-xs text-slate-500">
-          Choose better. Play sooner.
+          Your starting point for deciding what to play.
         </p>
       </div>
 
