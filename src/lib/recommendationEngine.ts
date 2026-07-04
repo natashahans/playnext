@@ -5,6 +5,7 @@ export type RecommendationGame = {
   title: string;
   rating: number | null;
   genres: string[] | null;
+  platforms?: string[] | null;
 };
 
 export type PreviousFeedback = {
@@ -14,6 +15,8 @@ export type PreviousFeedback = {
 
 export type UserPreferences = {
   favorite_genres: string[] | null;
+  preferred_platforms?: string[] | null;
+  play_style?: string | null;
   difficulty_preference: string | null;
   session_length_preference: string | null;
 };
@@ -21,7 +24,26 @@ export type UserPreferences = {
 export type ScoredGame = RecommendationGame & {
   score: number;
   explanation: string;
+  scoreBreakdown: {
+    label: string;
+    points: number;
+  }[];
 };
+
+function hasMatch(values: string[] | null | undefined, target: string) {
+  return values?.some((value) => value.toLowerCase() === target.toLowerCase());
+}
+
+function hasAnyMatch(
+  values: string[] | null | undefined,
+  targets: string[] | null | undefined
+) {
+  if (!values || !targets) return false;
+
+  return targets.some((target) =>
+    values.some((value) => value.toLowerCase() === target.toLowerCase())
+  );
+}
 
 export function scoreGames(
   games: RecommendationGame[],
@@ -31,34 +53,85 @@ export function scoreGames(
 ): ScoredGame[] {
   return games
     .map((game) => {
-      let score = 50;
+      let score = 40;
       const reasons: string[] = [];
+      const scoreBreakdown: { label: string; points: number }[] = [];
+
+      function addScore(label: string, points: number, reason: string) {
+        score += points;
+        scoreBreakdown.push({ label, points });
+        reasons.push(reason);
+      }
+
+      function subtractScore(label: string, points: number, reason: string) {
+        score -= points;
+        scoreBreakdown.push({ label, points: -points });
+        reasons.push(reason);
+      }
 
       if (
-        intent.desiredExperience === "relaxing" &&
-        game.genres?.includes("Relaxing")
+        intent.desiredExperience &&
+        intent.desiredExperience !== "unknown" &&
+        hasMatch(game.genres, intent.desiredExperience)
       ) {
-        score += 25;
-        reasons.push("matches your relaxing experience preference");
+        addScore(
+          "Desired experience match",
+          20,
+          "matches your desired experience"
+        );
       }
 
-      if (intent.mood === "tired" && game.genres?.includes("Relaxing")) {
-        score += 15;
-        reasons.push("fits a low-energy mood");
+      if (intent.mood === "tired" && hasMatch(game.genres, "Relaxing")) {
+        addScore("Mood match", 15, "fits a low-energy mood");
       }
 
       if (
-        preferences?.favorite_genres?.some((genre) =>
-          game.genres?.includes(genre)
-        )
+        intent.energyLevel === "low" &&
+        (hasMatch(game.genres, "Relaxing") || hasMatch(game.genres, "Simulation"))
       ) {
-        score += 15;
-        reasons.push("matches your saved genre preferences");
+        addScore("Energy fit", 15, "suits a lower-energy session");
       }
 
-      if (game.rating && game.rating >= 4) {
-        score += 10;
-        reasons.push("has a strong rating");
+      if (
+        intent.energyLevel === "high" &&
+        (hasMatch(game.genres, "Action") || hasMatch(game.genres, "Shooter"))
+      ) {
+        addScore("Energy fit", 15, "fits a high-energy session");
+      }
+
+      if (
+        preferences?.favorite_genres &&
+        hasAnyMatch(game.genres, preferences.favorite_genres)
+      ) {
+        addScore(
+          "Preference match",
+          15,
+          "matches your saved genre preferences"
+        );
+      }
+
+      if (
+        preferences?.preferred_platforms &&
+        hasAnyMatch(game.platforms, preferences.preferred_platforms)
+      ) {
+        addScore(
+          "Platform match",
+          8,
+          "matches one of your preferred platforms"
+        );
+      }
+
+      if (game.rating && game.rating >= 4.2) {
+        addScore("Rating", 10, "has a strong rating");
+      } else if (game.rating && game.rating >= 3.5) {
+        addScore("Rating", 5, "has a decent rating");
+      }
+
+      if (
+        intent.difficultyPreference === "easy" &&
+        (hasMatch(game.genres, "Relaxing") || hasMatch(game.genres, "Simulation"))
+      ) {
+        addScore("Difficulty fit", 10, "seems suitable for an easier session");
       }
 
       const feedbackForGame = previousFeedback.filter(
@@ -76,13 +149,19 @@ export function scoreGames(
       ).length;
 
       if (negativeFeedbackCount > 0) {
-        score -= negativeFeedbackCount * 20;
-        reasons.push("has been adjusted based on your previous feedback");
+        subtractScore(
+          "Previous negative feedback",
+          negativeFeedbackCount * 18,
+          "has been adjusted based on your previous negative feedback"
+        );
       }
 
       if (positiveFeedbackCount > 0) {
-        score += positiveFeedbackCount * 10;
-        reasons.push("was boosted because of previous positive feedback");
+        addScore(
+          "Previous positive feedback",
+          positiveFeedbackCount * 8,
+          "has been boosted because you previously liked it"
+        );
       }
 
       score = Math.max(0, Math.min(100, score));
@@ -90,8 +169,9 @@ export function scoreGames(
       return {
         ...game,
         score,
+        scoreBreakdown,
         explanation:
-        reasons.length > 0
+          reasons.length > 0
             ? `This looks like a strong fit because it ${reasons.join(", ")}.`
             : "This is a balanced option from your collection based on your current context.",
       };

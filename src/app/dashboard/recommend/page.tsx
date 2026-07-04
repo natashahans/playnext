@@ -87,7 +87,8 @@ export default function RecommendPage() {
           id,
           title,
           rating,
-          genres
+          genres,
+          platforms
         )
       `)
       .eq("user_id", userData.user.id);
@@ -149,7 +150,7 @@ export default function RecommendPage() {
 
     const { data: preferencesData } = await supabase
       .from("user_preferences")
-      .select("favorite_genres, difficulty_preference, session_length_preference")
+      .select("favorite_genres, preferred_platforms, play_style, difficulty_preference, session_length_preference")
       .eq("user_id", userData.user.id)
       .single();
 
