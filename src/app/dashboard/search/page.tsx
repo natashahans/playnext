@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type { Game } from "@/types/game";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
+import AddGameButton from "@/components/games/AddGameButton";
 
 export default async function SearchPage() {
   const { data: games, error } = await supabase
@@ -51,6 +52,8 @@ export default async function SearchPage() {
               <p className="mt-4 text-sm text-slate-400">
                 Rating: {game.rating ?? "N/A"}
               </p>
+
+              <AddGameButton gameId={game.id} />
             </div>
           </Card>
         ))}
