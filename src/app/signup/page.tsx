@@ -50,7 +50,7 @@ export default function SignupPage() {
 
   return (
     <main className="min-h-screen bg-[#f7f7f8] text-[#242528]">
-      <div className="flex min-h-screen items-center justify-center px-6">
+      <div className="flex min-h-screen items-start justify-center px-6 pt-[29vh]">
         <div className="w-full max-w-[340px] text-center">
           <PlayNextLogo />
 
