@@ -1,0 +1,68 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import OnboardingShell from "@/components/onboarding/OnboardingShell";
+
+const genres = [
+  "Action",
+  "Adventure",
+  "RPG",
+  "Shooter",
+  "Strategy",
+  "Simulation",
+  "Platformer",
+  "Puzzle",
+  "Horror",
+  "Racing",
+  "Sports",
+  "Indie",
+  "Cozy",
+  "Roguelike",
+  "Survival",
+  "Open World",
+];
+
+export default function GenresPage() {
+  const router = useRouter();
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+
+  function toggleGenre(genre: string) {
+    if (selectedGenres.includes(genre)) {
+      setSelectedGenres(selectedGenres.filter((item) => item !== genre));
+      return;
+    }
+
+    if (selectedGenres.length >= 5) return;
+
+    setSelectedGenres([...selectedGenres, genre]);
+  }
+
+  return (
+    <OnboardingShell
+      step={1}
+      totalSteps={5}
+      title="Which genres do you enjoy most?"
+      description="Choose up to 5 genres. We'll use these to personalize your recommendations."
+      nextLabel="Continue"
+      nextDisabled={selectedGenres.length === 0}
+      onNext={() => router.push("/onboarding/platforms")}
+    >
+      <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-3">
+        {genres.map((genre) => {
+          const selected = selectedGenres.includes(genre);
+
+          return (
+            <button
+              key={genre}
+              onClick={() => toggleGenre(genre)}
+              className={`choice-chip ${selected ? "choice-chip-selected" : ""}`}
+            >
+              {genre}
+            </button>
+          );
+        })}
+      </div>
+    </OnboardingShell>
+  );
+}
