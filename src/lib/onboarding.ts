@@ -1,4 +1,4 @@
-export const ONBOARDING_TOTAL_STEPS = 5;
+export const ONBOARDING_TOTAL_STEPS = 3;
 
 export const GENRES = [
   "Action",
