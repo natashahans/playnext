@@ -4,24 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import OnboardingShell from "@/components/onboarding/OnboardingShell";
 
-const genres = [
-  "Action",
-  "Adventure",
-  "RPG",
-  "Shooter",
-  "Strategy",
-  "Simulation",
-  "Platformer",
-  "Puzzle",
-  "Horror",
-  "Racing",
-  "Sports",
-  "Indie",
-  "Cozy",
-  "Roguelike",
-  "Survival",
-  "Open World",
-];
+import { GENRES, ONBOARDING_TOTAL_STEPS } from "@/lib/onboarding";
 
 export default function GenresPage() {
   const router = useRouter();
@@ -41,7 +24,7 @@ export default function GenresPage() {
   return (
     <OnboardingShell
       step={1}
-      totalSteps={5}
+      totalSteps={ONBOARDING_TOTAL_STEPS}
       title="Which genres do you enjoy most?"
       description="Choose up to 5 genres. We'll use these to personalize your recommendations."
       nextLabel="Continue"
@@ -49,7 +32,7 @@ export default function GenresPage() {
       onNext={() => router.push("/onboarding/platforms")}
     >
       <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-3">
-        {genres.map((genre) => {
+        {GENRES.map((genre) => {
           const selected = selectedGenres.includes(genre);
 
           return (
