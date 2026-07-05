@@ -31,10 +31,10 @@ export const GAME_PRIORITIES = [
   "Story",
   "Gameplay",
   "Exploration",
-  "Relaxing",
   "Challenge",
+  "Relaxing",
   "Multiplayer",
-  "Atmosphere",
+  "Achievements",
   "Creativity",
 ];
 

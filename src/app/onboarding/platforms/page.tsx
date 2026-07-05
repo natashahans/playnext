@@ -27,22 +27,24 @@ export default function PlatformsPage() {
       backHref="/onboarding/genres"
       nextLabel="Continue"
       nextDisabled={selectedPlatforms.length === 0}
-      onNext={() => router.push("/onboarding/priorities")}
+      onNext={() => router.push("/onboarding/collection")}
     >
-      <div className="mx-auto flex max-w-2xl flex-wrap justify-center gap-3">
-        {PLATFORMS.map((platform) => {
-          const selected = selectedPlatforms.includes(platform);
+      <div className="onboarding-section">
+        <div className="choice-grid">
+          {PLATFORMS.map((platform) => {
+            const selected = selectedPlatforms.includes(platform);
 
-          return (
-            <button
-              key={platform}
-              onClick={() => togglePlatform(platform)}
-              className={`choice-chip ${selected ? "choice-chip-selected" : ""}`}
-            >
-              {platform}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={platform}
+                onClick={() => togglePlatform(platform)}
+                className={`choice-chip ${selected ? "choice-chip-selected" : ""}`}
+              >
+                {platform}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </OnboardingShell>
   );
