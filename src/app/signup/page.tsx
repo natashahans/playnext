@@ -1,74 +1,86 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
+function PlayNextLogo() {
+  return (
+    <div className="mx-auto mb-[28px] flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#2f3033]">
+      <svg
+        width="24"
+        height="16"
+        viewBox="0 0 34 22"
+        fill="none"
+        className="text-white"
+      >
+        <circle cx="9" cy="11" r="6.2" stroke="currentColor" strokeWidth="2.8" />
+        <path
+          d="M19 5.6L27 11L19 16.4"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M26 5.6L32 11L26 16.4"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.34"
+        />
+      </svg>
+    </div>
+  );
+}
+
 export default function SignupPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const router = useRouter();
-
-    useEffect(() => {
-    async function redirectIfLoggedIn() {
-        const { data } = await supabase.auth.getUser();
-
-        if (data.user) {
-        router.push("/dashboard");
-        }
-    }
-
-    redirectIfLoggedIn();
-    }, [router]);
-
-    async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const { error } = await supabase.auth.signUp({
-        email,
-        password,
+  async function continueWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
 
     if (error) {
-        alert(error.message);
-        return;
+      alert(error.message);
     }
-
-    alert("Account created. Please check your email to confirm your account.");
-    }
+  }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8">
-        <h1 className="text-2xl font-bold">Create account</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Start building your PlayNext collection.
-        </p>
+    <main className="min-h-screen bg-[#f7f7f8] text-[#242528]">
+      <div className="flex min-h-screen items-center justify-center px-6">
+        <div className="w-full max-w-[340px] text-center">
+          <PlayNextLogo />
 
-        <form onSubmit={handleSignup} className="mt-6 space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white"
-            required
-          />
+          <h1 className="text-[18px] font-medium tracking-[-0.02em] text-[#242528]">
+            Create your PlayNext account
+          </h1>
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white"
-            required
-            minLength={6}
-          />
+          <div className="mt-[30px] flex flex-col items-center gap-6">
+            <button
+              onClick={continueWithGoogle}
+              className="h-[44px] w-[288px] rounded-full bg-[#5E6AD2] text-[13px] font-medium text-white transition hover:bg-[#5662CB]"
+            >
+              Continue with Google
+            </button>
 
-          <button className="w-full rounded-lg bg-white px-4 py-3 font-medium text-slate-950">
-            Create account
-          </button>
-        </form>
+            <Link
+              href="/signup/email"
+              className="flex h-[44px] w-[288px] items-center justify-center rounded-full border border-[#e3e3e6] bg-white text-[13px] font-medium text-[#242528] transition hover:bg-[#f4f4f5]"
+            >
+              Continue with email
+            </Link>
+          </div>
+
+          <p className="mt-[38px] text-[13px] text-[#6b6c72]">
+            Already have an account?{" "}
+            <Link href="/login" className="text-[#242528] hover:underline">
+              Log in
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );
