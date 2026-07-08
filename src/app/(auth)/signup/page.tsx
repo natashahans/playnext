@@ -1,13 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useAuthTransition } from "@/components/auth/AuthTransitionProvider";
-import AuthLogo from "@/components/auth/AuthLogo";
 import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
   const { navigateAuth } = useAuthTransition();
 
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   async function continueWithGoogle() {
+    setGoogleLoading(true);
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -15,27 +19,42 @@ export default function SignupPage() {
       },
     });
 
-    if (error) alert(error.message);
+    if (error) {
+      setGoogleLoading(false);
+      return;
+    }
   }
 
   return (
     <>
-
       <h1 className="auth-title">Create your PlayNext account</h1>
 
       <div className="auth-actions">
-        <button type="button" onClick={continueWithGoogle} className="auth-button auth-button-primary">
-          Continue with Google
+        <button
+          type="button"
+          onClick={continueWithGoogle}
+          disabled={googleLoading}
+          className="auth-button auth-button-primary"
+        >
+          {googleLoading ? "Opening Google..." : "Continue with Google"}
         </button>
 
-        <button type="button" onClick={() => navigateAuth("/signup/email")} className="auth-button auth-button-secondary">
+        <button
+          type="button"
+          onClick={() => navigateAuth("/signup/email")}
+          className="auth-button auth-button-secondary"
+        >
           Continue with email
         </button>
       </div>
 
       <p className="auth-footer">
         Already have an account?{" "}
-        <button type="button" onClick={() => navigateAuth("/login")} className="auth-link">
+        <button
+          type="button"
+          onClick={() => navigateAuth("/login")}
+          className="auth-link"
+        >
           Log in
         </button>
       </p>

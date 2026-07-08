@@ -57,12 +57,12 @@ export default function CheckResetEmailPage() {
 
       <div className="auth-actions">
         <button
-          type="button"
-          onClick={resendEmail}
-          disabled={loading}
-          className="auth-button auth-button-secondary"
+        type="button"
+        onClick={resendEmail}
+        disabled={loading}
+        className="auth-button auth-button-secondary"
         >
-          {loading ? "Sending..." : "Resend email"}
+        {loading ? "Sending..." : "Resend email"}
         </button>
 
         <button

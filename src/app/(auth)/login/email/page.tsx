@@ -17,10 +17,12 @@ export default function LoginEmailPage() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function loginWithEmail(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
+    setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -29,8 +31,10 @@ export default function LoginEmailPage() {
 
     if (error) {
       setErrorMessage("Incorrect email or password.");
+      setLoading(false);
       return;
     }
+
     router.push("/dashboard");
   }
 
@@ -90,8 +94,12 @@ export default function LoginEmailPage() {
           </button>
         </p>
 
-        <button type="submit" className="auth-button auth-button-primary">
-          Log in
+        <button
+          type="submit"
+          disabled={loading}
+          className="auth-button auth-button-primary"
+        >
+          {loading ? "Logging in..." : "Log in"}
         </button>
       </form>
 
