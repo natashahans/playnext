@@ -30,7 +30,7 @@ export default function DashboardLayout({
         .single();
 
       if (!profile?.onboarding_completed) {
-        router.push("/onboarding");
+        router.push("/onboarding/genres");
         return;
       }
 
