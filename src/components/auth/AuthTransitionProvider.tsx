@@ -52,12 +52,18 @@ export default function AuthTransitionProvider({
     setExiting(false);
   }, [pathname]);
 
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   return (
     <AuthTransitionContext.Provider value={{ navigateAuth }}>
       <main className="auth-page">
         <div className="auth-shell">
           <div className="auth-container">
-            <AuthLogo />
+            <div className="auth-static-logo">
+              <AuthLogo />
+            </div>
 
             <motion.div
               key={pathname}

@@ -3,7 +3,6 @@
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useAuthTransition } from "@/components/auth/AuthTransitionProvider";
-import AuthLogo from "@/components/auth/AuthLogo";
 import { supabase } from "@/lib/supabase";
 
 export default function SignupDetailsPage() {
@@ -24,6 +23,7 @@ export default function SignupDetailsPage() {
       email: emailFromUrl,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/finish`,
         data: {
           full_name: name,
         },
@@ -41,7 +41,6 @@ export default function SignupDetailsPage() {
 
   return (
     <>
-      <AuthLogo />
 
       <h1 className="auth-title">Create your account</h1>
 

@@ -571,3 +571,22 @@ body {
   align-items: center;
   width: 100%;
 }
+
+.auth-static-logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Prevent old/auth-page logo instances from appearing inside animated card */
+.auth-card .auth-logo {
+  display: none !important;
+}
+
+.auth-static-logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
