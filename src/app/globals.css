@@ -558,3 +558,10 @@ body {
   line-height: 1.6;
   color: var(--color-auth-muted);
 }
+
+.collection-game-placeholder {
+  height: 50px;
+  width: 38px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+}
