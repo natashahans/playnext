@@ -78,6 +78,18 @@ export default function LoginEmailPage() {
           </p>
         )}
 
+        <p className="auth-forgot">
+          <button
+            type="button"
+            onClick={() =>
+              navigateAuth(`/login/forgot-password?email=${encodeURIComponent(email.trim())}`)
+            }
+            className="auth-link"
+          >
+            Forgot password?
+          </button>
+        </p>
+
         <button type="submit" className="auth-button auth-button-primary">
           Log in
         </button>
