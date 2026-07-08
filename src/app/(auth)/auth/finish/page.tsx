@@ -11,9 +11,9 @@ export default function AuthFinishPage() {
     async function finishAuth() {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const { data } = await supabase.auth.getUser();
+      const { data: userData } = await supabase.auth.getUser();
 
-      if (!data.user) {
+      if (!userData.user) {
         router.replace("/login");
         return;
       }
@@ -21,7 +21,7 @@ export default function AuthFinishPage() {
       const { data: profile } = await supabase
         .from("profiles")
         .select("onboarding_completed")
-        .eq("id", data.user.id)
+        .eq("id", userData.user.id)
         .maybeSingle();
 
       if (profile?.onboarding_completed) {
@@ -36,12 +36,8 @@ export default function AuthFinishPage() {
   }, [router]);
 
   return (
-    <main className="auth-page">
-      <div className="auth-shell">
-        <div className="auth-card">
-          <p className="auth-title">Signing you in...</p>
-        </div>
-      </div>
-    </main>
+    <>
+      <p className="auth-title">Signing you in...</p>
+    </>
   );
 }
