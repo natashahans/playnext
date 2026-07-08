@@ -1,16 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuthTransition } from "@/components/auth/AuthTransitionProvider";
-import AuthLogo from "@/components/auth/AuthLogo";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginEmailPage() {
   const router = useRouter();
+
+  const searchParams = useSearchParams();
+  const emailFromUrl = searchParams.get("email") ?? "";
   const { navigateAuth } = useAuthTransition();
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(emailFromUrl);
   const [password, setPassword] = useState("");
 
   async function loginWithEmail(event: React.FormEvent<HTMLFormElement>) {

@@ -72,7 +72,9 @@ export default function SignupEmailPage() {
               {errorMessage.includes("already exists") && (
                 <button
                   type="button"
-                  onClick={() => navigateAuth("/login")}
+                  onClick={() =>
+                    navigateAuth(`/login/email?email=${encodeURIComponent(email.trim().toLowerCase())}`)
+                  }
                   className="auth-error-link"
                 >
                   Log in instead.
