@@ -626,3 +626,19 @@ body {
   margin-top: -6px;
   margin-bottom: -4px;
 }
+
+.onboarding-logout {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 50;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.onboarding-logout:hover {
+  color: rgba(255, 255, 255, 0.75);
+}

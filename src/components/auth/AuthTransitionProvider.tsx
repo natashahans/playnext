@@ -10,6 +10,7 @@ import {
 import { motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import AuthLogo from "@/components/auth/AuthLogo";
+import { supabase } from "@/lib/supabase";
 
 type AuthTransitionContextValue = {
   navigateAuth: (href: string) => void;
@@ -35,6 +36,8 @@ export default function AuthTransitionProvider({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [exiting, setExiting] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -49,12 +52,52 @@ export default function AuthTransitionProvider({
   }
 
   useEffect(() => {
+    async function redirectLoggedInUser() {
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (!userData.user) {
+        setCheckingAuth(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("id", userData.user.id)
+        .maybeSingle();
+
+      if (profile?.onboarding_completed) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      router.replace("/onboarding/genres");
+    }
+
+    redirectLoggedInUser();
+  }, [router]);
+
+  useEffect(() => {
     setExiting(false);
   }, [pathname]);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  if (checkingAuth) {
+    return (
+      <main className="auth-page">
+        <div className="auth-shell">
+          <div className="auth-container">
+            <div className="auth-static-logo">
+              <AuthLogo />
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <AuthTransitionContext.Provider value={{ navigateAuth }}>

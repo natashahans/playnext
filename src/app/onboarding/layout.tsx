@@ -11,13 +11,14 @@ export default function OnboardingLayout({
 }) {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     async function checkUser() {
       const { data } = await supabase.auth.getUser();
 
       if (!data.user) {
-        router.push("/login");
+        router.replace("/login");
         return;
       }
 
@@ -26,6 +27,12 @@ export default function OnboardingLayout({
 
     checkUser();
   }, [router]);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }
 
   if (checking) {
     return (
@@ -37,5 +44,18 @@ export default function OnboardingLayout({
     );
   }
 
-  return children;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleLogout}
+        disabled={loggingOut}
+        className="onboarding-logout"
+      >
+        {loggingOut ? "Logging out..." : "Log out"}
+      </button>
+
+      {children}
+    </>
+  );
 }
