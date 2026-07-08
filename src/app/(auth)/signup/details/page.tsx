@@ -47,9 +47,8 @@ export default function SignupDetailsPage() {
     }
 
     if (data.user && data.user.identities?.length === 0) {
-      alert("An account already exists with this email. Please log in instead.");
+      setErrorMessage("An account already exists with this email.");
       setLoading(false);
-      navigateAuth("/login");
       return;
     }
 
@@ -98,7 +97,7 @@ export default function SignupDetailsPage() {
             className="auth-password-toggle"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
-            {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+            {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
           </button>
         </div>
 

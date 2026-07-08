@@ -13,6 +13,7 @@ export default function CheckEmailPage() {
   const email = searchParams.get("email") ?? "";
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     async function redirectIfLoggedIn() {
@@ -39,12 +40,13 @@ export default function CheckEmailPage() {
 
   async function resendEmail() {
     if (!email) {
-      alert("Email address missing. Please sign up again.");
+      setErrorMessage("Email address missing. Please sign up again.");
       return;
     }
 
     setResending(true);
     setResent(false);
+    setErrorMessage("");
 
     const { error } = await supabase.auth.resend({
       type: "signup",
@@ -55,7 +57,7 @@ export default function CheckEmailPage() {
     });
 
     if (error) {
-      alert(error.message);
+      setErrorMessage(error.message);
       setResending(false);
       return;
     }
@@ -72,6 +74,12 @@ export default function CheckEmailPage() {
         We sent a confirmation link{email ? ` to ${email}` : ""}. Open it to
         finish creating your PlayNext account.
       </p>
+
+      {errorMessage && (
+        <p className="auth-error auth-login-error">
+          {errorMessage}
+        </p>
+      )}
 
       <div className="auth-actions">
         <button
