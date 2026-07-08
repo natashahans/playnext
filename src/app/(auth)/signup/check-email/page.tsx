@@ -1,17 +1,41 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuthTransition } from "@/components/auth/AuthTransitionProvider";
 import { supabase } from "@/lib/supabase";
 
 export default function CheckEmailPage() {
+  const router = useRouter();
   const { navigateAuth } = useAuthTransition();
   const searchParams = useSearchParams();
 
   const email = searchParams.get("email") ?? "";
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+
+  useEffect(() => {
+    async function redirectIfLoggedIn() {
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (!userData.user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("id", userData.user.id)
+        .maybeSingle();
+
+      if (profile?.onboarding_completed) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      router.replace("/onboarding/genres");
+    }
+
+    redirectIfLoggedIn();
+  }, [router]);
 
   async function resendEmail() {
     if (!email) {

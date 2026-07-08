@@ -14,10 +14,13 @@ export default function SignupDetailsPage() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function createAccount(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
+
+    setErrorMessage("");
 
     const { data, error } = await supabase.auth.signUp({
       email: emailFromUrl,
@@ -31,7 +34,12 @@ export default function SignupDetailsPage() {
     });
 
     if (error) {
-      alert(error.message);
+      if (error.message.toLowerCase().includes("rate limit")) {
+        setErrorMessage("Too many emails sent. Please wait a while and try again.");
+      } else {
+        setErrorMessage(error.message);
+      }
+
       setLoading(false);
       return;
     }
@@ -80,6 +88,10 @@ export default function SignupDetailsPage() {
           autoComplete="new-password"
           className="auth-input"
         />
+
+        {errorMessage && (
+          <p className="auth-error auth-login-error">{errorMessage}</p>
+        )}
 
         <button
           type="submit"
