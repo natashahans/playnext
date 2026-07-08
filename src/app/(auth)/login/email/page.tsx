@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuthTransition } from "@/components/auth/AuthTransitionProvider";
 import { supabase } from "@/lib/supabase";
 
@@ -15,6 +16,7 @@ export default function LoginEmailPage() {
   const [email, setEmail] = useState(emailFromUrl);
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function loginWithEmail(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,15 +50,27 @@ export default function LoginEmailPage() {
           className="auth-input"
         />
 
-        <input
-          type="password"
-          required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="Password"
-          autoComplete="current-password"
-          className="auth-input"
-        />
+        <div className="auth-password">
+          <input
+            type={showPassword ? "text" : "password"}
+            required
+            minLength={6}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Create password"
+            autoComplete="new-password"
+            className="auth-input"
+          />
+
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="auth-password-toggle"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
+        </div>
 
         {errorMessage && (
           <p className="auth-error auth-login-error">
