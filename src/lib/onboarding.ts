@@ -26,22 +26,3 @@ export const PLATFORMS = [
   "Nintendo Switch",
   "Steam Deck",
 ];
-
-export const GAME_PRIORITIES = [
-  "Story",
-  "Gameplay",
-  "Exploration",
-  "Challenge",
-  "Relaxing",
-  "Multiplayer",
-  "Achievements",
-  "Creativity",
-];
-
-export const SESSION_LENGTHS = [
-  "15–30 minutes",
-  "30–60 minutes",
-  "1–2 hours",
-  "2–4 hours",
-  "No preference",
-];
