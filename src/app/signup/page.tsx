@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import AuthLogo from "@/components/auth/AuthLogo";
 
 function PlayNextLogo() {
   return (
@@ -31,12 +32,15 @@ export default function SignupPage() {
     <main className="auth-page">
       <div className="auth-shell">
         <div className="auth-card">
-          <PlayNextLogo />
+          <AuthLogo />
 
           <h1 className="auth-title">Create your PlayNext account</h1>
 
           <div className="auth-actions">
-            <button onClick={continueWithGoogle} className="auth-button auth-button-primary">
+            <button
+              onClick={continueWithGoogle}
+              className="auth-button auth-button-primary"
+            >
               Continue with Google
             </button>
 

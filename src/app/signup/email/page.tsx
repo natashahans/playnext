@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import AuthLogo from "@/components/auth/AuthLogo";
 
 function PlayNextLogo() {
   return (
@@ -31,7 +32,7 @@ export default function SignupEmailPage() {
     <main className="auth-page">
       <div className="auth-shell">
         <div className="auth-card">
-          <PlayNextLogo />
+          <AuthLogo />
 
           <h1 className="auth-title">What&apos;s your email address?</h1>
 

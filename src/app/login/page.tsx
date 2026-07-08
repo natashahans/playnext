@@ -1,74 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import AuthLogo from "@/components/auth/AuthLogo";
+
+function PlayNextLogo() {
+  return (
+    <div className="auth-logo">
+      <svg width="24" height="16" viewBox="0 0 34 22" fill="none">
+        <circle cx="9" cy="11" r="6.2" stroke="currentColor" strokeWidth="2.8" />
+        <path d="M19 5.6L27 11L19 16.4" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M26 5.6L32 11L26 16.4" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" opacity="0.34" />
+      </svg>
+    </div>
+  );
+}
 
 export default function LoginPage() {
-  const router = useRouter();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-    useEffect(() => {
-    async function redirectIfLoggedIn() {
-        const { data } = await supabase.auth.getUser();
-
-        if (data.user) {
-        router.push("/dashboard");
-        }
-    }
-
-    redirectIfLoggedIn();
-    }, [router]);
-
-  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+  async function continueWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    router.push("/dashboard");
+    if (error) alert(error.message);
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8">
-        <h1 className="text-2xl font-bold">Log in</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Access your PlayNext account.
-        </p>
+    <main className="auth-page">
+      <div className="auth-shell">
+        <div className="auth-card">
+          <AuthLogo />
 
-        <form onSubmit={handleLogin} className="mt-6 space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white"
-            required
-          />
+          <h1 className="auth-title">Log in to PlayNext</h1>
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white"
-            required
-          />
+          <div className="auth-actions">
+            <button
+              onClick={continueWithGoogle}
+              className="auth-button auth-button-primary"
+            >
+              Continue with Google
+            </button>
 
-          <button className="w-full rounded-lg bg-white px-4 py-3 font-medium text-slate-950">
-            Log in
-          </button>
-        </form>
+            <Link href="/login/email" className="auth-button auth-button-secondary">
+              Continue with email
+            </Link>
+          </div>
+
+          <p className="auth-footer">
+            Don&apos;t have an account?{" "}
+            <Link href="/signup" className="auth-link">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );
