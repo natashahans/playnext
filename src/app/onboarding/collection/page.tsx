@@ -111,8 +111,8 @@ export default function OnboardingCollectionPage() {
     const { error: profileError } = await supabase.from("profiles").upsert(
     {
         id: userData.user.id,
+        email: userData.user.email,
         onboarding_completed: true,
-        updated_at: new Date().toISOString(),
     },
     { onConflict: "id" }
     );
