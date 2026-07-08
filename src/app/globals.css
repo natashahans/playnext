@@ -590,3 +590,34 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+.auth-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-message:empty {
+  display: none;
+}
+
+.auth-error {
+  text-align: center;
+  color: #d14343;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.auth-error-link {
+  margin-top: 2px;
+  color: var(--color-auth-text);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.auth-error-link:hover {
+  opacity: 0.75;
+}

@@ -19,7 +19,7 @@ export default function SignupDetailsPage() {
     event.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: emailFromUrl,
       password,
       options: {
@@ -33,6 +33,13 @@ export default function SignupDetailsPage() {
     if (error) {
       alert(error.message);
       setLoading(false);
+      return;
+    }
+
+    if (data.user && data.user.identities?.length === 0) {
+      alert("An account already exists with this email. Please log in instead.");
+      setLoading(false);
+      navigateAuth("/login");
       return;
     }
 
