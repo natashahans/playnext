@@ -36,16 +36,22 @@ export default function SignupDetailsPage() {
       return;
     }
 
-    navigateAuth("/signup/check-email");
+    const encodedEmail = encodeURIComponent(emailFromUrl);
+    navigateAuth(`/signup/check-email?email=${encodedEmail}`);
   }
 
   return (
     <>
-
       <h1 className="auth-title">Create your account</h1>
 
       <form onSubmit={createAccount} className="auth-actions">
-        <input type="email" value={emailFromUrl} disabled autoComplete="email" className="auth-input" />
+        <input
+          type="email"
+          value={emailFromUrl}
+          disabled
+          autoComplete="email"
+          className="auth-input"
+        />
 
         <input
           type="text"
@@ -68,13 +74,21 @@ export default function SignupDetailsPage() {
           className="auth-input"
         />
 
-        <button type="submit" disabled={loading} className="auth-button auth-button-primary">
+        <button
+          type="submit"
+          disabled={loading}
+          className="auth-button auth-button-primary"
+        >
           {loading ? "Creating account..." : "Create account"}
         </button>
       </form>
 
       <p className="auth-footer">
-        <button type="button" onClick={() => navigateAuth("/signup/email")} className="auth-link">
+        <button
+          type="button"
+          onClick={() => navigateAuth("/signup/email")}
+          className="auth-link"
+        >
           Back
         </button>
       </p>
