@@ -108,15 +108,19 @@ export default function OnboardingCollectionPage() {
       }
     }
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({ onboarding_completed: true })
-      .eq("id", userData.user.id);
+    const { error: profileError } = await supabase.from("profiles").upsert(
+    {
+        id: userData.user.id,
+        onboarding_completed: true,
+        updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" }
+    );
 
     if (profileError) {
-      alert(profileError.message);
-      setSaving(false);
-      return;
+    alert(profileError.message);
+    setSaving(false);
+    return;
     }
 
     router.push("/dashboard");
