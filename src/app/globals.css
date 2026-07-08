@@ -621,3 +621,8 @@ body {
 .auth-error-link:hover {
   opacity: 0.75;
 }
+
+.auth-login-error {
+  margin-top: -6px;
+  margin-bottom: -4px;
+}

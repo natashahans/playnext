@@ -14,9 +14,11 @@ export default function LoginEmailPage() {
 
   const [email, setEmail] = useState(emailFromUrl);
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function loginWithEmail(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setErrorMessage("");
 
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -24,10 +26,9 @@ export default function LoginEmailPage() {
     });
 
     if (error) {
-      alert(error.message);
+      setErrorMessage("Incorrect email or password.");
       return;
     }
-
     router.push("/dashboard");
   }
 
@@ -56,6 +57,12 @@ export default function LoginEmailPage() {
           autoComplete="current-password"
           className="auth-input"
         />
+
+        {errorMessage && (
+          <p className="auth-error auth-login-error">
+            {errorMessage}
+          </p>
+        )}
 
         <button type="submit" className="auth-button auth-button-primary">
           Log in
