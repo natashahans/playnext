@@ -51,6 +51,14 @@ function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function isSameGame(
+  game: Pick<RecommendationGame, "id" | "rawg_id">,
+  reference: { game_id: string; rawg_id?: number | null }
+) {
+  return reference.game_id === game.id ||
+    (game.rawg_id != null && reference.rawg_id === game.rawg_id);
+}
+
 function gameSignals(game: Pick<RecommendationGame, "genres" | "tags">) {
   return [...(game.genres ?? []), ...(game.tags ?? [])].map(normalize);
 }
@@ -245,40 +253,108 @@ function feedbackGenreOverlap(game: RecommendationGame, feedback: PreviousFeedba
   return overlap(game.genres, feedback.game?.genres).length > 0;
 }
 
-function evaluateFeedback(game: RecommendationGame, feedback: PreviousFeedback[]): Evaluation {
+function feedbackAgeInDays(item: PreviousFeedback) {
+  if (!item.created_at) return 0;
+  const timestamp = new Date(item.created_at).getTime();
+  if (Number.isNaN(timestamp)) return 0;
+  return Math.max(0, (Date.now() - timestamp) / 86_400_000);
+}
+
+function decayPenalty(points: number, ageInDays: number) {
+  if (ageInDays < 14) return points;
+  if (ageInDays < 60) return points * 0.65;
+  if (ageInDays < 180) return points * 0.35;
+  return points * 0.15;
+}
+
+function evaluateFeedback(
+  game: RecommendationGame,
+  feedback: PreviousFeedback[],
+  intent: ExtractedIntent
+): Evaluation {
   let points = 0;
   const reasons: string[] = [];
   const cautions: string[] = [];
-  const exactFeedback = feedback.filter((item) => item.game_id === game.id);
+  const exactFeedback = feedback.filter((item) =>
+    isSameGame(game, { game_id: item.game_id, rawg_id: item.game?.rawg_id })
+  );
 
   exactFeedback.forEach((item) => {
+    const ageInDays = feedbackAgeInDays(item);
+
     if (item.feedback_type === "liked") {
       points += 8;
       reasons.push("you previously marked this as a good recommendation");
     }
-    if (item.feedback_type === "not_in_mood") points -= 12;
-    if (item.feedback_type === "too_long") points -= 20;
-    if (item.feedback_type === "too_difficult") points -= 20;
-    if (item.feedback_type === "not_interested") points -= 35;
+
+    if (item.feedback_type === "not_in_mood") {
+      points += decayPenalty(-22, ageInDays);
+      cautions.push("you recently said this game did not fit your mood");
+    }
+
+    if (item.feedback_type === "too_long") {
+      if (intent.availableTime !== null && intent.availableTime <= 45) {
+        points += decayPenalty(-24, ageInDays);
+        cautions.push("you previously found this too long for a short session");
+      } else if (intent.availableTime === null || intent.availableTime < 120) {
+        points += decayPenalty(-7, ageInDays);
+      }
+    }
+
+    if (item.feedback_type === "too_difficult") {
+      if (intent.difficultyPreference === "hard") {
+        points -= 1;
+      } else if (intent.difficultyPreference === "easy") {
+        points += decayPenalty(-24, ageInDays);
+        cautions.push("you previously found this more difficult than you wanted");
+      } else {
+        points += decayPenalty(-9, ageInDays);
+      }
+    }
+
+    if (item.feedback_type === "not_interested") {
+      points += decayPenalty(-30, ageInDays);
+      cautions.push("you previously showed low interest in this game");
+    }
+
     if (item.feedback_type === "already_played") points -= 40;
   });
 
-  feedback.filter((item) => item.game_id !== game.id).forEach((item) => {
+  feedback.filter((item) =>
+    !isSameGame(game, { game_id: item.game_id, rawg_id: item.game?.rawg_id })
+  ).forEach((item) => {
     if (item.feedback_type === "liked" && feedbackGenreOverlap(game, item)) points += 2;
-    if (item.feedback_type === "too_long" && isLongForm(game)) points -= 4;
-    if (item.feedback_type === "too_difficult" && looksDifficult(game)) points -= 5;
+    if (
+      item.feedback_type === "too_long" &&
+      isLongForm(game) &&
+      intent.availableTime !== null &&
+      intent.availableTime <= 60
+    ) points -= 4;
+    if (
+      item.feedback_type === "too_difficult" &&
+      looksDifficult(game) &&
+      intent.difficultyPreference !== "hard"
+    ) points -= 5;
     if (item.feedback_type === "not_interested" && feedbackGenreOverlap(game, item)) points -= 2;
   });
 
   if (points > 0) reasons.push("it benefits from patterns in your previous feedback");
   if (points < -10) cautions.push("your earlier feedback suggests this may be a weaker personal fit");
 
-  return cappedEvaluation(points, -45, 15, "Feedback learning", "Adjustments learned from previous recommendation feedback", reasons, cautions);
+  return cappedEvaluation(
+    points,
+    -45,
+    15,
+    "Feedback learning",
+    "Context-aware feedback signals decay over time instead of permanently hiding games",
+    reasons,
+    cautions
+  );
 }
 
 function evaluateHistory(game: RecommendationGame, history: PreviousRecommendation[]): Evaluation {
   const now = Date.now();
-  const appearances = history.filter((item) => item.game_id === game.id);
+  const appearances = history.filter((item) => isSameGame(game, item));
   let points = 0;
 
   appearances.forEach((item) => {
@@ -336,7 +412,7 @@ export function scoreGames(
     .map((game) => {
       const context = evaluateLiveContext(game, intent);
       const savedPreferences = evaluatePreferences(game, preferences);
-      const learnedFeedback = evaluateFeedback(game, previousFeedback);
+      const learnedFeedback = evaluateFeedback(game, previousFeedback, intent);
       const history = evaluateHistory(game, previousRecommendations);
       const quality = evaluateQuality(game);
       const evaluations = [context, savedPreferences, learnedFeedback, history, quality];

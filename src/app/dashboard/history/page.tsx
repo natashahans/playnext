@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { CalendarDays, ChevronDown, Clock3, Gamepad2, History } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock3, Compass, Gamepad2, History, Library } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -15,7 +15,10 @@ type HistoryItem = {
   created_at: string;
   score: number;
   explanation: string;
-  recommendation_sessions: Relation<{ user_input: string }>;
+  recommendation_sessions: Relation<{
+    user_input: string;
+    recommendation_mode: "collection" | "discovery";
+  }>;
   games: Relation<{ title: string; background_image: string | null }>;
   feedback: { feedback_type: string }[] | null;
   score_breakdown: { label: string; points: number }[] | null;
@@ -52,7 +55,7 @@ export default function HistoryPage() {
           explanation,
           score_breakdown,
           games ( title, background_image ),
-          recommendation_sessions ( user_input ),
+          recommendation_sessions ( user_input, recommendation_mode ),
           feedback ( feedback_type )
         `)
         .eq("user_id", userData.user.id)
@@ -128,6 +131,7 @@ export default function HistoryPage() {
             const game = one(item.games);
             const session = one(item.recommendation_sessions);
             const feedback = item.feedback?.[0]?.feedback_type;
+            const mode = session?.recommendation_mode ?? "collection";
 
             return (
               <article key={item.id} className="history-card">
@@ -151,7 +155,10 @@ export default function HistoryPage() {
                 <div className="history-content">
                   <div className="history-heading">
                     <div>
-                      <span className="pn-eyebrow">Recommended game</span>
+                      <span className="pn-eyebrow">
+                        {mode === "discovery" ? <Compass size={12} /> : <Library size={12} />}
+                        {mode === "discovery" ? "New discovery" : "From your collection"}
+                      </span>
                       <h2>{game?.title ?? "Unknown game"}</h2>
                     </div>
                     <div className="history-score">

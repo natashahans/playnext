@@ -2,8 +2,13 @@ import type { ExtractedIntent } from "@/types/intent";
 
 export type { ExtractedIntent };
 
+export type RecommendationMode = "collection" | "discovery";
+
 export type RecommendationGame = {
   id: string;
+  rawg_id?: number | null;
+  slug?: string | null;
+  source?: RecommendationMode;
   title: string;
   background_image?: string | null;
   released?: string | null;
@@ -17,6 +22,7 @@ export type RecommendationGame = {
 
 export type FeedbackGameSnapshot = {
   id: string;
+  rawg_id?: number | null;
   genres: string[] | null;
   platforms?: string[] | null;
   playtime?: number | null;
@@ -27,6 +33,7 @@ export type PreviousFeedback = {
   game_id: string;
   feedback_type: string;
   reason?: string | null;
+  created_at?: string | null;
   game?: FeedbackGameSnapshot | null;
 };
 
@@ -55,5 +62,6 @@ export type ScoredGame = RecommendationGame & {
 
 export type PreviousRecommendation = {
   game_id: string;
+  rawg_id?: number | null;
   created_at: string;
 };

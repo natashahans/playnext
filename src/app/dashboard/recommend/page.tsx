@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
+  Compass,
   Gamepad2,
   Library,
   RotateCcw,
@@ -19,12 +20,15 @@ import {
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
+import AddRecommendedGameButton from "@/components/recommendations/AddRecommendedGameButton";
 import { scoreGames } from "@/lib/recommendationEngine";
+import type { RawgGame } from "@/lib/rawg";
 import type {
   FeedbackGameSnapshot,
   PreviousFeedback,
   PreviousRecommendation,
   RecommendationGame,
+  RecommendationMode,
   ScoredGame,
   UserPreferences,
 } from "@/lib/recommendation/types";
@@ -45,23 +49,45 @@ type UserGameRow = {
 type FeedbackRow = {
   feedback_type: string;
   reason: string | null;
+  created_at: string | null;
   recommendations: Relation<{
     game_id: string;
     games: Relation<FeedbackGameSnapshot>;
   }>;
 };
 
-const initialMessage: IntentChatMessage = {
-  id: "assistant-welcome",
-  role: "assistant",
-  content: "Tell me about the play session you want right now. Mood, time, energy, difficulty—say it naturally. I’ll ask one follow-up only if I genuinely need it.",
+type StoredDecisionState = {
+  mode: RecommendationMode;
+  messages: IntentChatMessage[];
+  extractedIntent: ExtractedIntent | null;
+  recommendedGame: ScoredGame | null;
+  recommendationId: string | null;
+  evaluatedCount: number;
 };
+
+type HistoryRow = {
+  game_id: string;
+  created_at: string;
+  games: Relation<{ rawg_id: number | null }>;
+};
+
+function initialMessage(mode: RecommendationMode): IntentChatMessage {
+  return {
+    id: `assistant-welcome-${mode}`,
+    role: "assistant",
+    content: mode === "collection"
+      ? "Tell me about the play session you want right now. I’ll choose the strongest fit from games you already own."
+      : "Tell me what kind of new game would fit right now. I’ll search beyond your collection and find a discovery matched to this session.",
+  };
+}
 
 const promptSuggestions = [
   "I have 30 minutes and want something relaxing",
   "I’m energetic and want difficult combat",
   "I’m tired but want a strong story",
 ];
+
+const DECISION_STORAGE_KEY = "playnext:active-decision:v1";
 
 function one<T>(relation: Relation<T>) {
   return Array.isArray(relation) ? relation[0] : relation;
@@ -76,7 +102,8 @@ function createMessage(role: "assistant" | "user", content: string): IntentChatM
 }
 
 export default function RecommendPage() {
-  const [messages, setMessages] = useState<IntentChatMessage[]>([initialMessage]);
+  const [mode, setMode] = useState<RecommendationMode>("collection");
+  const [messages, setMessages] = useState<IntentChatMessage[]>([initialMessage("collection")]);
   const [draft, setDraft] = useState("");
   const [interpreting, setInterpreting] = useState(false);
   const [ranking, setRanking] = useState(false);
@@ -85,11 +112,74 @@ export default function RecommendPage() {
   const [recommendedGame, setRecommendedGame] = useState<ScoredGame | null>(null);
   const [recommendationId, setRecommendationId] = useState<string | null>(null);
   const [evaluatedCount, setEvaluatedCount] = useState(0);
+  const [storageReady, setStorageReady] = useState(false);
   const conversationEndRef = useRef<HTMLDivElement>(null);
+  const recommendationRef = useRef<HTMLElement>(null);
+  const chatCardRef = useRef<HTMLElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = window.sessionStorage.getItem(DECISION_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved) as Partial<StoredDecisionState>;
+          const validMode = parsed.mode === "collection" || parsed.mode === "discovery";
+          const validMessages = Array.isArray(parsed.messages) && parsed.messages.length > 0;
+
+          if (validMode && validMessages) {
+            setMode(parsed.mode as RecommendationMode);
+            setMessages(parsed.messages as IntentChatMessage[]);
+            setExtractedIntent(parsed.extractedIntent ?? null);
+            setRecommendedGame(parsed.recommendedGame ?? null);
+            setRecommendationId(parsed.recommendationId ?? null);
+            setEvaluatedCount(parsed.evaluatedCount ?? 0);
+          }
+        }
+      } catch {
+        window.sessionStorage.removeItem(DECISION_STORAGE_KEY);
+      } finally {
+        setStorageReady(true);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+
+    const state: StoredDecisionState = {
+      mode,
+      messages,
+      extractedIntent,
+      recommendedGame,
+      recommendationId,
+      evaluatedCount,
+    };
+
+    window.sessionStorage.setItem(DECISION_STORAGE_KEY, JSON.stringify(state));
+  }, [
+    storageReady,
+    mode,
+    messages,
+    extractedIntent,
+    recommendedGame,
+    recommendationId,
+    evaluatedCount,
+  ]);
 
   useEffect(() => {
     conversationEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, interpreting]);
+
+  useEffect(() => {
+    if (recommendedGame) {
+      window.setTimeout(() => {
+        recommendationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+    }
+  }, [recommendedGame]);
 
   async function createRecommendation(
     intent: ExtractedIntent,
@@ -109,6 +199,8 @@ export default function RecommendPage() {
               status,
               games (
                 id,
+                rawg_id,
+                slug,
                 title,
                 background_image,
                 released,
@@ -125,9 +217,10 @@ export default function RecommendPage() {
             .select(`
               feedback_type,
               reason,
+              created_at,
               recommendations (
                 game_id,
-                games ( id, genres, platforms, playtime, tags )
+                games ( id, rawg_id, genres, platforms, playtime, tags )
               )
             `)
             .eq("user_id", userData.user.id),
@@ -138,7 +231,7 @@ export default function RecommendPage() {
             .maybeSingle(),
           supabase
             .from("recommendations")
-            .select("game_id, created_at")
+            .select("game_id, created_at, games ( rawg_id )")
             .eq("user_id", userData.user.id)
             .order("created_at", { ascending: false })
             .limit(20),
@@ -149,13 +242,13 @@ export default function RecommendPage() {
       if (historyResult.error) throw historyResult.error;
 
       const collectionRows = (collectionResult.data ?? []) as unknown as UserGameRow[];
-      const games: RecommendationGame[] = collectionRows
+      const collectionGames: RecommendationGame[] = collectionRows
         .flatMap((row) => {
           const game = one(row.games);
-          return game ? [{ ...game, status: row.status }] : [];
+          return game ? [{ ...game, status: row.status, source: "collection" as const }] : [];
         });
 
-      if (games.length === 0) {
+      if (mode === "collection" && collectionGames.length === 0) {
         throw new Error("Add at least one game to your collection before asking PlayNext to decide.");
       }
 
@@ -168,20 +261,99 @@ export default function RecommendPage() {
             game_id: recommendation.game_id,
             feedback_type: row.feedback_type,
             reason: row.reason,
+            created_at: row.created_at,
             game: one(recommendation.games),
           }];
         });
 
+      const preferences = preferencesResult.data as UserPreferences | null;
+      const previousRecommendations: PreviousRecommendation[] = (
+        (historyResult.data ?? []) as unknown as HistoryRow[]
+      ).map((item) => ({
+        game_id: item.game_id,
+        rawg_id: one(item.games)?.rawg_id ?? null,
+        created_at: item.created_at,
+      }));
+
+      let candidateGames = collectionGames;
+
+      if (mode === "discovery") {
+        const response = await fetch("/api/games/recommend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            intent,
+            preferences,
+            excludedRawgIds: collectionGames
+              .map((game) => game.rawg_id)
+              .filter((id): id is number => id != null),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("PlayNext could not search for new games right now.");
+        }
+
+        const payload = (await response.json()) as { games: RawgGame[] };
+        candidateGames = payload.games.map((game) => ({
+          id: `rawg:${game.id}`,
+          rawg_id: game.id,
+          slug: game.slug,
+          source: "discovery" as const,
+          title: game.name,
+          background_image: game.background_image,
+          released: game.released,
+          rating: game.rating,
+          genres: game.genres.map((genre) => genre.name),
+          platforms: game.platforms?.map((item) => item.platform.name) ?? [],
+          playtime: game.playtime,
+          tags: game.tags
+            .filter((tag) => /^[\x00-\x7F\s\-':,&()]+$/.test(tag.name))
+            .map((tag) => tag.name),
+        }));
+      }
+
+      if (candidateGames.length === 0) {
+        throw new Error(mode === "collection"
+          ? "There are no games available in your collection."
+          : "No suitable new games were found. Try broadening your request.");
+      }
+
       const scoredGames = scoreGames(
-        games,
+        candidateGames,
         intent,
         previousFeedback,
-        preferencesResult.data as UserPreferences | null,
-        (historyResult.data ?? []) as PreviousRecommendation[]
+        preferences,
+        previousRecommendations
       );
-      const bestGame = scoredGames[0];
+      let bestGame = scoredGames[0];
 
-      if (!bestGame) throw new Error("PlayNext could not find a suitable game in your collection.");
+      if (!bestGame) throw new Error("PlayNext could not find a suitable game for this session.");
+
+      if (mode === "discovery") {
+        const { data: savedGame, error: saveGameError } = await supabase
+          .from("games")
+          .upsert({
+            rawg_id: bestGame.rawg_id,
+            title: bestGame.title,
+            slug: bestGame.slug,
+            background_image: bestGame.background_image,
+            released: bestGame.released,
+            rating: bestGame.rating,
+            playtime: bestGame.playtime,
+            genres: bestGame.genres ?? [],
+            platforms: bestGame.platforms ?? [],
+            tags: bestGame.tags ?? [],
+          }, { onConflict: "rawg_id" })
+          .select("id")
+          .single();
+
+        if (saveGameError || !savedGame) {
+          throw new Error("The discovery was found but could not be saved.");
+        }
+
+        bestGame = { ...bestGame, id: savedGame.id };
+      }
 
       const userInput = conversation
         .filter((message) => message.role === "user")
@@ -200,6 +372,7 @@ export default function RecommendPage() {
           difficulty_preference: intent.difficultyPreference,
           preferred_genres: intent.preferredGenres,
           reference_games: intent.referenceGames,
+          recommendation_mode: mode,
         })
         .select("id")
         .single();
@@ -223,10 +396,13 @@ export default function RecommendPage() {
 
       setRecommendedGame(bestGame);
       setRecommendationId(recommendationData.id);
-      setEvaluatedCount(games.length);
+      setEvaluatedCount(candidateGames.length);
       setMessages((current) => [
         ...current,
-        createMessage("assistant", `I evaluated ${games.length} games using your live context, saved preferences, previous feedback and recommendation history. ${bestGame.title} is the strongest match.`),
+        createMessage(
+          "assistant",
+          `I evaluated ${candidateGames.length} ${mode === "collection" ? "games from your collection" : "new discoveries outside your collection"} using your live context, saved preferences, previous feedback and recommendation history. ${bestGame.title} is the strongest match.`
+        ),
       ]);
     } finally {
       setRanking(false);
@@ -236,7 +412,7 @@ export default function RecommendPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || interpreting || ranking || recommendedGame) return;
+    if (!content || interpreting || ranking) return;
 
     const userMessage = createMessage("user", content);
     const nextMessages = [...messages, userMessage];
@@ -244,6 +420,9 @@ export default function RecommendPage() {
     setMessages(nextMessages);
     setDraft("");
     setErrorMessage("");
+    setRecommendedGame(null);
+    setRecommendationId(null);
+    setEvaluatedCount(0);
     setInterpreting(true);
 
     try {
@@ -274,7 +453,25 @@ export default function RecommendPage() {
   }
 
   function resetConversation() {
-    setMessages([initialMessage]);
+    window.sessionStorage.removeItem(DECISION_STORAGE_KEY);
+    setMessages([initialMessage(mode)]);
+    setDraft("");
+    setErrorMessage("");
+    setExtractedIntent(null);
+    setRecommendedGame(null);
+    setRecommendationId(null);
+    setEvaluatedCount(0);
+  }
+
+  function continueConversation() {
+    chatCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => composerRef.current?.focus(), 260);
+  }
+
+  function changeMode(nextMode: RecommendationMode) {
+    if (nextMode === mode) return;
+    setMode(nextMode);
+    setMessages([initialMessage(nextMode)]);
     setDraft("");
     setErrorMessage("");
     setExtractedIntent(null);
@@ -299,27 +496,58 @@ export default function RecommendPage() {
       <header className="ai-decide-header">
         <div>
           <span><Sparkles size={13} aria-hidden="true" /> PlayNext decision assistant</span>
-          <h1>Tell me what fits right now.</h1>
-          <p>The AI understands your context. The recommendation engine evaluates your collection.</p>
+          <h1>What should you play next?</h1>
+          <p>Describe the kind of session you want. PlayNext will find one focused answer.</p>
         </div>
         {(messages.length > 1 || recommendedGame) && (
           <button type="button" onClick={resetConversation}>
-            <RotateCcw size={14} aria-hidden="true" /> Start over
+            <RotateCcw size={14} aria-hidden="true" /> New conversation
           </button>
         )}
       </header>
 
       <div className="ai-decide-layout">
-        <section className="ai-chat-card">
+        <section className="ai-chat-card" ref={chatCardRef}>
           <div className="ai-chat-toolbar">
             <div className="ai-chat-identity">
               <span><Bot size={17} aria-hidden="true" /></span>
-              <div><strong>PlayNext AI</strong><small>Intent interpreter</small></div>
+              <div>
+                <strong>PlayNext AI</strong>
+                <p>{mode === "collection" ? "Choosing from games you already own" : "Discovering a game outside your collection"}</p>
+              </div>
+              <span className="ai-chat-status"><i /> Online</span>
             </div>
-            <span className="ai-chat-status"><i /> Online</span>
+
+            <div className="ai-source-control">
+              <span>Recommend from</span>
+              <div className="ai-source-switch" role="radiogroup" aria-label="Recommendation source">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === "collection"}
+                  className={mode === "collection" ? "is-active" : ""}
+                  onClick={() => changeMode("collection")}
+                  disabled={interpreting || ranking}
+                  title="Recommend only games already in your collection"
+                >
+                  <Library size={14} aria-hidden="true" /> My collection
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === "discovery"}
+                  className={mode === "discovery" ? "is-active" : ""}
+                  onClick={() => changeMode("discovery")}
+                  disabled={interpreting || ranking}
+                  title="Recommend a game outside your collection"
+                >
+                  <Compass size={14} aria-hidden="true" /> Discover new
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="ai-chat-thread" aria-live="polite">
+          <div className={`ai-chat-thread ${messages.length === 1 ? "is-empty" : ""}`} aria-live="polite">
             {messages.map((message) => (
               <div key={message.id} className={`ai-message ai-message-${message.role}`}>
                 <span>{message.role === "assistant" ? <Bot size={15} /> : <UserRound size={15} />}</span>
@@ -343,56 +571,67 @@ export default function RecommendPage() {
             {ranking && (
               <div className="ai-engine-progress" role="status">
                 <span className="dashboard-loading-dot" />
-                <div><strong>Recommendation engine running</strong><p>Scoring context, preferences, feedback and history.</p></div>
+                <div>
+                  <strong>{mode === "collection" ? "Ranking your collection" : "Searching for new discoveries"}</strong>
+                  <p>Scoring context, preferences, feedback and history.</p>
+                </div>
               </div>
             )}
             <div ref={conversationEndRef} />
           </div>
 
-          {!recommendedGame && (
-            <div className="ai-chat-composer-wrap">
-              {messages.length === 1 && (
-                <div className="ai-chat-suggestions">
-                  {promptSuggestions.map((suggestion) => (
-                    <button type="button" key={suggestion} onClick={() => setDraft(suggestion)}>{suggestion}</button>
-                  ))}
-                </div>
-              )}
+          <div className="ai-chat-composer-wrap">
+            {messages.length === 1 && (
+              <div className="ai-chat-suggestions">
+                {promptSuggestions.map((suggestion) => (
+                  <button type="button" key={suggestion} onClick={() => setDraft(suggestion)}>{suggestion}</button>
+                ))}
+              </div>
+            )}
 
-              <form className="ai-chat-composer" onSubmit={handleSubmit}>
-                <textarea
-                  value={draft}
-                  onChange={(event) => {
-                    setDraft(event.target.value);
-                    setErrorMessage("");
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      event.currentTarget.form?.requestSubmit();
-                    }
-                  }}
-                  placeholder="Describe your mood, time and energy…"
-                  maxLength={700}
-                  rows={2}
-                  disabled={interpreting || ranking}
-                  aria-label="Message PlayNext AI"
-                />
-                <div>
-                  <span>Enter to send · Shift + Enter for a new line</span>
-                  <button type="submit" disabled={!draft.trim() || interpreting || ranking} aria-label="Send message">
-                    <Send size={16} aria-hidden="true" />
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+            {recommendedGame && (
+              <div className="ai-refine-hint">
+                <Sparkles size={14} aria-hidden="true" />
+                <span>Want a different answer? Continue the conversation and tell PlayNext what to change.</span>
+              </div>
+            )}
+
+            <form className="ai-chat-composer" onSubmit={handleSubmit}>
+              <textarea
+                ref={composerRef}
+                value={draft}
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                  setErrorMessage("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
+                placeholder={recommendedGame
+                  ? "Refine it — for example, something shorter or less intense…"
+                  : "Describe your mood, time and energy…"}
+                maxLength={700}
+                rows={2}
+                disabled={interpreting || ranking}
+                aria-label="Message PlayNext AI"
+              />
+              <div>
+                <span>Enter to send · Shift + Enter for a new line</span>
+                <button type="submit" disabled={!draft.trim() || interpreting || ranking} aria-label="Send message">
+                  <Send size={16} aria-hidden="true" />
+                </button>
+              </div>
+            </form>
+          </div>
         </section>
 
         <aside className="ai-context-card">
           <div className="ai-context-heading">
             <span><ShieldCheck size={17} aria-hidden="true" /></span>
-            <div><strong>Live decision context</strong><p>Structured criteria extracted from this conversation.</p></div>
+            <div><small>What PlayNext understands</small><strong>Your session context</strong><p>These details update as you chat.</p></div>
           </div>
 
           {extractedIntent ? (
@@ -416,14 +655,17 @@ export default function RecommendPage() {
           ) : (
             <div className="ai-context-empty">
               <Clock3 size={22} aria-hidden="true" />
-              <p>Your interpreted mood, time, energy and desired experience will appear here.</p>
+              <h3>Waiting for your message</h3>
+              <p>Mood, time, energy and the experience you want will appear here.</p>
             </div>
           )}
 
-          <div className="ai-context-boundary">
-            <strong>Clear separation of responsibility</strong>
-            <p><b>AI:</b> understands your words.</p>
-            <p><b>Engine:</b> ranks your games using controlled factors.</p>
+          <div className="ai-context-source-card">
+            {mode === "collection" ? <Library size={17} /> : <Compass size={17} />}
+            <div>
+              <span>Recommendation source</span>
+              <strong>{mode === "collection" ? "Your collection" : "Outside your collection"}</strong>
+            </div>
           </div>
         </aside>
       </div>
@@ -433,7 +675,7 @@ export default function RecommendPage() {
       )}
 
       {recommendedGame && extractedIntent && (
-        <section className="ai-recommendation">
+        <section className="ai-recommendation" ref={recommendationRef}>
           <div className="ai-recommendation-artwork">
             {recommendedGame.background_image ? (
               <Image src={recommendedGame.background_image} alt="" fill priority sizes="(max-width: 900px) 100vw, 45vw" className="object-cover" unoptimized />
@@ -441,12 +683,12 @@ export default function RecommendPage() {
               <div className="game-artwork-placeholder"><Gamepad2 size={34} /></div>
             )}
             <div className="ai-recommendation-artwork-scrim" />
-            <span><CheckCircle2 size={14} /> Strongest of {evaluatedCount} games</span>
+            <span><CheckCircle2 size={14} /> Strongest of {evaluatedCount} {mode === "collection" ? "owned games" : "new discoveries"}</span>
           </div>
 
           <div className="ai-recommendation-content">
             <div className="ai-recommendation-heading">
-              <div><span>Your recommendation</span><h2>{recommendedGame.title}</h2></div>
+              <div><span>{mode === "collection" ? "From your collection" : "New discovery"}</span><h2>{recommendedGame.title}</h2></div>
               <div className="ai-match-score"><strong>{recommendedGame.score}</strong><span>% fit</span></div>
             </div>
 
@@ -481,8 +723,19 @@ export default function RecommendPage() {
 
             {recommendationId && <FeedbackButtons recommendationId={recommendationId} />}
 
+            {mode === "discovery" && (
+              <div className="ai-discovery-actions">
+                <AddRecommendedGameButton gameId={recommendedGame.id} />
+                {recommendedGame.slug && (
+                  <Button href={`/dashboard/search/${recommendedGame.slug}`} variant="ghost">
+                    View game details <ArrowRight size={14} />
+                  </Button>
+                )}
+              </div>
+            )}
+
             <div className="ai-recommendation-actions">
-              <Button onClick={resetConversation} variant="secondary"><RotateCcw size={14} /> Ask again</Button>
+              <Button onClick={continueConversation} variant="secondary"><Sparkles size={14} /> Refine in chat</Button>
               <Button href="/dashboard/collection" variant="ghost"><Library size={14} /> View collection <ArrowRight size={14} /></Button>
             </div>
           </div>
