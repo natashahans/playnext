@@ -19,7 +19,9 @@ export default function Topbar() {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const title = pageTitles[pathname] ?? "PlayNext";
+  const title = pathname.startsWith("/dashboard/search/")
+    ? "Game details"
+    : pageTitles[pathname] ?? "PlayNext";
 
   async function handleLogout() {
     setLoggingOut(true);

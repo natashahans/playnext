@@ -17,9 +17,10 @@ export default function AddRawgGameButton({
   const [added, setAdded] = useState(alreadyAdded);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const isAdded = added || alreadyAdded;
 
   async function handleAddGame() {
-    if (loading || added) return;
+    if (loading || isAdded) return;
 
     setLoading(true);
     setErrorMessage("");
@@ -55,8 +56,8 @@ export default function AddRawgGameButton({
       .select("id")
       .single();
 
-    if (gameError) {
-      setErrorMessage("This game couldn’t be added. Please try again.");
+    if (gameError || !savedGame) {
+      setErrorMessage("This game could not be added. Please try again.");
       setLoading(false);
       return;
     }
@@ -76,7 +77,7 @@ export default function AddRawgGameButton({
       );
 
     if (userGameError) {
-      setErrorMessage("This game couldn’t be added to your collection.");
+      setErrorMessage("This game could not be added to your collection.");
       setLoading(false);
       return;
     }
@@ -91,11 +92,11 @@ export default function AddRawgGameButton({
       <button
         type="button"
         onClick={handleAddGame}
-        disabled={loading || added}
-        className={added ? "game-add-button game-add-button-added" : "game-add-button"}
+        disabled={loading || isAdded}
+        className={isAdded ? "game-add-button game-add-button-added" : "game-add-button"}
       >
-        {added ? <Check size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
-        {added ? "In collection" : loading ? "Adding…" : "Add to collection"}
+        {isAdded ? <Check size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
+        {isAdded ? "In collection" : loading ? "Adding…" : "Add to collection"}
       </button>
       {errorMessage && <span role="alert">{errorMessage}</span>}
     </div>

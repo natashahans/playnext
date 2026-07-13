@@ -2,199 +2,291 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Gamepad2, Search } from "lucide-react";
-import Badge from "@/components/ui/Badge";
-import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Gamepad2,
+  Search,
+  Sparkles,
+  Star,
+  X,
+} from "lucide-react";
 import AddRawgGameButton from "@/components/games/AddRawgGameButton";
-import { searchRawgGames, type RawgGame } from "@/lib/rawg";
+import DiscoveryGameCard from "@/components/games/DiscoveryGameCard";
+import GameRail from "@/components/games/GameRail";
+import type { DiscoveryPayload, RawgGame } from "@/lib/rawg";
 import { supabase } from "@/lib/supabase";
 
 type ExistingGameRow = {
   games: { rawg_id: number | null } | { rawg_id: number | null }[] | null;
 };
 
+const genreLinks = [
+  { label: "Trending", target: "trending" },
+  { label: "New releases", target: "new-releases" },
+  { label: "Top rated", target: "top-rated" },
+  { label: "Action", target: "action" },
+  { label: "RPG", target: "role-playing" },
+  { label: "Indie", target: "indie" },
+];
+
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
-  const [games, setGames] = useState<RawgGame[]>([]);
+  const [discovery, setDiscovery] = useState<DiscoveryPayload | null>(null);
+  const [searchResults, setSearchResults] = useState<RawgGame[]>([]);
   const [existingRawgIds, setExistingRawgIds] = useState<Set<number>>(new Set());
-  const [loading, setLoading] = useState(false);
+  const [loadingDiscovery, setLoadingDiscovery] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     let active = true;
 
-    async function loadExistingGames() {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user || !active) return;
-
-      const { data } = await supabase
-        .from("user_games")
-        .select("games ( rawg_id )")
-        .eq("user_id", userData.user.id);
+    async function loadPage() {
+      const [catalogueResponse, userResult] = await Promise.all([
+        fetch("/api/games/discover"),
+        supabase.auth.getUser(),
+      ]);
 
       if (!active) return;
 
-      const rows = (data ?? []) as unknown as ExistingGameRow[];
-      const ids = rows
-        .map((row) => (Array.isArray(row.games) ? row.games[0] : row.games)?.rawg_id)
-        .filter((id): id is number => typeof id === "number");
+      if (!catalogueResponse.ok) {
+        setErrorMessage("The game catalogue is taking a break. Please try again shortly.");
+      } else {
+        setDiscovery((await catalogueResponse.json()) as DiscoveryPayload);
+      }
 
-      setExistingRawgIds(new Set(ids));
+      const user = userResult.data.user;
+      if (user) {
+        const { data } = await supabase
+          .from("user_games")
+          .select("games ( rawg_id )")
+          .eq("user_id", user.id);
+
+        if (!active) return;
+
+        const rows = (data ?? []) as unknown as ExistingGameRow[];
+        const ids = rows
+          .map((row) =>
+            (Array.isArray(row.games) ? row.games[0] : row.games)?.rawg_id
+          )
+          .filter((id): id is number => typeof id === "number");
+
+        setExistingRawgIds(new Set(ids));
+      }
+
+      if (active) setLoadingDiscovery(false);
     }
 
-    loadExistingGames();
+    loadPage().catch(() => {
+      if (!active) return;
+      setErrorMessage("The game catalogue is taking a break. Please try again shortly.");
+      setLoadingDiscovery(false);
+    });
 
     return () => {
       active = false;
     };
   }, []);
 
+  function handleAdded(gameId: number) {
+    setExistingRawgIds((current) => new Set([...current, gameId]));
+  }
+
   async function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const cleanedQuery = query.trim();
-    if (!cleanedQuery || loading) return;
 
-    setLoading(true);
+    if (!cleanedQuery || searching) return;
+
+    setSearching(true);
     setErrorMessage("");
     setSubmittedQuery(cleanedQuery);
 
     try {
-      const results = await searchRawgGames(cleanedQuery);
-      setGames(results);
-    } catch (error) {
-      setGames([]);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "We couldn’t search the game catalogue. Please try again."
+      const response = await fetch(
+        `/api/games/discover?search=${encodeURIComponent(cleanedQuery)}`
       );
+
+      if (!response.ok) throw new Error("Search failed");
+
+      const data = (await response.json()) as { results: RawgGame[] };
+      setSearchResults(data.results);
+    } catch {
+      setSearchResults([]);
+      setErrorMessage("We could not complete that search. Please try again.");
     } finally {
-      setLoading(false);
+      setSearching(false);
     }
   }
 
-  return (
-    <div className="pn-page">
-      <div className="pn-page-intro">
-        <div>
-          <h2>Add games to your library</h2>
-          <p>
-            Search for games you own or genuinely want to play. Your collection
-            becomes the decision space for every PlayNext recommendation.
-          </p>
-        </div>
-      </div>
+  function clearSearch() {
+    setQuery("");
+    setSubmittedQuery("");
+    setSearchResults([]);
+    setErrorMessage("");
+  }
 
-      <Card className="catalog-search-card">
-        <form onSubmit={handleSearch}>
-          <label htmlFor="catalog-search">Search the game catalogue</label>
-          <div className="catalog-search-row">
-            <div className="pn-search-field">
-              <Search size={17} aria-hidden="true" />
-              <input
-                id="catalog-search"
-                type="search"
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setErrorMessage("");
-                }}
-                placeholder="Try Elden Ring, Stardew Valley, Hades…"
-                autoComplete="off"
-              />
-            </div>
-            <Button type="submit" loading={loading} disabled={!query.trim()}>
-              {loading ? "Searching…" : "Search"}
-            </Button>
-          </div>
+  function scrollToSection(target: string) {
+    document.getElementById(target)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
+  const featured = discovery?.featured ?? null;
+
+  return (
+    <div className="discover-page">
+      <header className="discover-header">
+        <div>
+          <span className="discover-eyebrow">
+            <Sparkles size={13} aria-hidden="true" />
+            Explore the catalogue
+          </span>
+          <h1>Find something worth playing.</h1>
+          <p>Browse standout games, open the details, then add the right ones to your collection.</p>
+        </div>
+
+        <form className="discover-search" onSubmit={handleSearch}>
+          <Search size={18} aria-hidden="true" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search games, series or studios"
+            aria-label="Search the game catalogue"
+            autoComplete="off"
+          />
+          {query && (
+            <button type="button" onClick={clearSearch} aria-label="Clear search">
+              <X size={16} aria-hidden="true" />
+            </button>
+          )}
+          <button type="submit" disabled={!query.trim() || searching}>
+            {searching ? "Searching…" : "Search"}
+          </button>
         </form>
-      </Card>
+      </header>
 
       {errorMessage && (
-        <div className="pn-inline-error" role="alert">
-          <strong>Search unavailable</strong>
+        <div className="discover-error" role="alert">
+          <Gamepad2 size={18} aria-hidden="true" />
           <span>{errorMessage}</span>
         </div>
       )}
 
-      {!submittedQuery && !loading && (
-        <Card className="pn-empty-state pn-empty-state-large">
-          <span className="pn-empty-icon" aria-hidden="true">
-            <Search size={22} />
-          </span>
-          <h3>Find your next possibilities</h3>
-          <p>Search above to start building a focused, personal game library.</p>
-        </Card>
-      )}
-
-      {submittedQuery && !loading && !errorMessage && (
-        <section className="pn-section">
-          <div className="pn-section-header">
+      {submittedQuery ? (
+        <section className="discover-results">
+          <div className="discover-results-header">
             <div>
-              <span className="pn-eyebrow">Search results</span>
-              <h2>{games.length > 0 ? `Results for “${submittedQuery}”` : "No games found"}</h2>
+              <span>Search results</span>
+              <h2>{searching ? "Searching the catalogue…" : `Games matching “${submittedQuery}”`}</h2>
             </div>
-            <span className="pn-result-count">{games.length} results</span>
+            <button type="button" onClick={clearSearch}>Back to discover</button>
           </div>
 
-          {games.length === 0 ? (
-            <Card className="pn-empty-state">
-              <span className="pn-empty-icon" aria-hidden="true">
-                <Gamepad2 size={22} />
-              </span>
-              <h3>Nothing matched that title</h3>
-              <p>Check the spelling or try a shorter game title.</p>
-            </Card>
+          {!searching && searchResults.length === 0 && !errorMessage ? (
+            <div className="discover-empty">
+              <Search size={24} aria-hidden="true" />
+              <h3>No games found</h3>
+              <p>Try a shorter title or check the spelling.</p>
+            </div>
           ) : (
-            <div className="game-card-grid catalog-card-grid">
-              {games.map((game) => (
-                <article key={game.id} className="game-card catalog-game-card">
-                  <div className="game-card-artwork">
-                    {game.background_image ? (
-                      <Image
-                        src={game.background_image}
-                        alt=""
-                        fill
-                        sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 25vw"
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="game-artwork-placeholder">
-                        <Gamepad2 size={24} aria-hidden="true" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="game-card-body">
-                    <div className="game-card-title-row">
-                      <h3>{game.name}</h3>
-                      {game.rating !== null && <span>{game.rating.toFixed(1)}</span>}
-                    </div>
-
-                    <div className="game-card-badges">
-                      {game.genres?.slice(0, 2).map((genre) => (
-                        <Badge key={genre.id}>{genre.name}</Badge>
-                      ))}
-                    </div>
-
-                    <AddRawgGameButton
-                      game={game}
-                      alreadyAdded={existingRawgIds.has(game.id)}
-                      onAdded={() =>
-                        setExistingRawgIds((current) => new Set([...current, game.id]))
-                      }
-                    />
-                  </div>
-                </article>
+            <div className="discover-results-grid">
+              {searchResults.map((game) => (
+                <DiscoveryGameCard
+                  key={game.id}
+                  game={game}
+                  alreadyAdded={existingRawgIds.has(game.id)}
+                  onAdded={handleAdded}
+                />
               ))}
             </div>
           )}
         </section>
+      ) : loadingDiscovery ? (
+        <DiscoverySkeleton />
+      ) : (
+        <>
+          {featured && (
+            <section className="discover-hero">
+              {featured.background_image && (
+                <Image
+                  src={featured.background_image}
+                  alt=""
+                  fill
+                  sizes="(max-width: 900px) 100vw, 80vw"
+                  className="object-cover"
+                  priority
+                  unoptimized
+                />
+              )}
+              <div className="discover-hero-scrim" />
+
+              <div className="discover-hero-content">
+                <span className="discover-featured-label">Featured this week</span>
+                <h2>{featured.name}</h2>
+                <div className="discover-hero-meta">
+                  {featured.rating !== null && featured.rating > 0 && (
+                    <span><Star size={13} fill="currentColor" /> {featured.rating.toFixed(1)}</span>
+                  )}
+                  {featured.genres?.slice(0, 2).map((genre) => (
+                    <span key={genre.id}>{genre.name}</span>
+                  ))}
+                </div>
+                <p>A standout game players are adding to their lists right now.</p>
+                <div className="discover-hero-actions">
+                  <Link href={`/dashboard/search/${featured.slug}`}>
+                    View details <ArrowRight size={16} aria-hidden="true" />
+                  </Link>
+                  <AddRawgGameButton
+                    game={featured}
+                    alreadyAdded={existingRawgIds.has(featured.id)}
+                    onAdded={() => handleAdded(featured.id)}
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          <nav className="discover-chips" aria-label="Browse categories">
+            {genreLinks.map((item) => (
+              <button key={item.target} type="button" onClick={() => scrollToSection(item.target)}>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="discover-shelves">
+            {discovery?.sections.map((section) => (
+              <GameRail
+                key={section.id}
+                section={section}
+                existingRawgIds={existingRawgIds}
+                onAdded={handleAdded}
+              />
+            ))}
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function DiscoverySkeleton() {
+  return (
+    <div className="discover-loading" aria-label="Loading games" role="status">
+      <div className="discover-loading-hero" />
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="discover-loading-row">
+          <span />
+          <div>
+            {[0, 1, 2, 3].map((card) => <i key={card} />)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
