@@ -1,23 +1,25 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function RemoveGameButton({
   userGameId,
+  gameTitle = "this game",
+  onRemoved,
 }: {
   userGameId: string;
+  gameTitle?: string;
+  onRemoved?: () => void;
 }) {
-  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function handleRemove() {
-    const confirmed = confirm("Remove this game from your collection?");
-
-    if (!confirmed) return;
-
     setLoading(true);
+    setErrorMessage("");
 
     const { error } = await supabase
       .from("user_games")
@@ -25,21 +27,43 @@ export default function RemoveGameButton({
       .eq("id", userGameId);
 
     if (error) {
-      alert(error.message);
+      setErrorMessage("This game couldn’t be removed. Please try again.");
       setLoading(false);
       return;
     }
 
-    router.refresh();
+    setLoading(false);
+    setConfirming(false);
+    onRemoved?.();
+  }
+
+  if (confirming) {
+    return (
+      <div className="remove-confirmation">
+        <p>
+          Remove <strong>{gameTitle}</strong>?
+        </p>
+        <div>
+          <button type="button" onClick={() => setConfirming(false)} disabled={loading}>
+            Cancel
+          </button>
+          <button type="button" onClick={handleRemove} disabled={loading}>
+            {loading ? "Removing…" : "Remove"}
+          </button>
+        </div>
+        {errorMessage && <span role="alert">{errorMessage}</span>}
+      </div>
+    );
   }
 
   return (
     <button
-      onClick={handleRemove}
-      disabled={loading}
-      className="mt-4 w-full rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+      type="button"
+      onClick={() => setConfirming(true)}
+      className="game-remove-button"
     >
-      {loading ? "Removing..." : "Remove from collection"}
+      <Trash2 size={14} aria-hidden="true" />
+      Remove
     </button>
   );
 }

@@ -1,36 +1,113 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Clock3,
+  Compass,
+  Home,
+  Library,
+  Search,
+  Settings,
+} from "lucide-react";
+import AuthLogo from "@/components/auth/AuthLogo";
 
 const navItems = [
-  { href: "/dashboard", label: "Home" },
-  { href: "/dashboard/collection", label: "My Collection" },
-  { href: "/dashboard/search", label: "Add Games" },
-  { href: "/dashboard/recommend", label: "Decide" },
-  { href: "/dashboard/history", label: "History" },
-  { href: "/dashboard/settings", label: "Settings" },
+  { href: "/dashboard", label: "Home", shortLabel: "Home", icon: Home },
+  {
+    href: "/dashboard/collection",
+    label: "My collection",
+    shortLabel: "Library",
+    icon: Library,
+  },
+  {
+    href: "/dashboard/search",
+    label: "Add games",
+    shortLabel: "Add",
+    icon: Search,
+  },
+  {
+    href: "/dashboard/recommend",
+    label: "Decide",
+    shortLabel: "Decide",
+    icon: Compass,
+  },
+  {
+    href: "/dashboard/history",
+    label: "History",
+    shortLabel: "History",
+    icon: Clock3,
+  },
+  {
+    href: "/dashboard/settings",
+    label: "Settings",
+    shortLabel: "Settings",
+    icon: Settings,
+  },
 ];
 
+function isActivePath(pathname: string, href: string) {
+  if (href === "/dashboard") {
+    return pathname === href;
+  }
+
+  return pathname.startsWith(href);
+}
+
 export default function Sidebar() {
+  const pathname = usePathname();
+
   return (
-    <aside className="hidden min-h-screen w-64 border-r border-slate-800 bg-slate-950 px-5 py-6 md:block">
-      <Link href="/" className="text-xl font-bold tracking-tight text-white">
-        PlayNext
-      </Link>
+    <>
+      <aside className="dashboard-sidebar">
+        <Link href="/dashboard" className="dashboard-brand">
+          <AuthLogo />
+          <span className="dashboard-brand-name">PlayNext</span>
+        </Link>
 
-      <p className="mt-2 text-xs text-slate-500">
-        Decide what to play next.
-      </p>
+        <nav className="dashboard-nav" aria-label="Dashboard navigation">
+          {navItems.map((item) => {
+            const active = isActivePath(pathname, item.href);
+            const Icon = item.icon;
 
-      <nav className="mt-8 space-y-1">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="block rounded-lg px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
-          >
-            {item.label}
-          </Link>
-        ))}
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`dashboard-nav-item ${
+                  active ? "dashboard-nav-item-active" : ""
+                }`}
+              >
+                <Icon aria-hidden="true" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+      </aside>
+
+      <nav className="dashboard-mobile-nav" aria-label="Mobile navigation">
+        {navItems.map((item) => {
+          const active = isActivePath(pathname, item.href);
+          const Icon = item.icon;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`dashboard-mobile-nav-item ${
+                active ? "dashboard-mobile-nav-item-active" : ""
+              }`}
+            >
+              <Icon aria-hidden="true" />
+              <span>{item.shortLabel}</span>
+            </Link>
+          );
+        })}
       </nav>
-    </aside>
+    </>
   );
 }

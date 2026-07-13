@@ -12,14 +12,18 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     async function checkAccess() {
       const { data: userData } = await supabase.auth.getUser();
 
+      if (!active) return;
+
       if (!userData.user) {
-        router.push("/login");
+        router.replace("/login");
         return;
       }
 
@@ -27,36 +31,50 @@ export default function DashboardLayout({
         .from("profiles")
         .select("onboarding_completed")
         .eq("id", userData.user.id)
-        .single();
+        .maybeSingle();
+
+      if (!active) return;
 
       if (!profile?.onboarding_completed) {
-        router.push("/onboarding/genres");
+        router.replace("/onboarding/genres");
         return;
       }
 
-      setLoading(false);
+      setCheckingAccess(false);
     }
 
     checkAccess();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
-  if (loading) {
+  if (checkingAccess) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <p className="text-slate-400">Loading PlayNext...</p>
+      <main className="dashboard-loading">
+        <div className="dashboard-loading-inner" role="status">
+          <span className="dashboard-loading-dot" aria-hidden="true" />
+          <span>Preparing your PlayNext workspace…</span>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      <div className="flex min-h-screen">
+    <main className="dashboard-shell">
+      <div className="dashboard-frame">
         <Sidebar />
 
-        <div className="flex min-h-screen flex-1 flex-col">
+        <div className="dashboard-workspace">
           <Topbar />
-
-          <section className="flex-1 p-6">{children}</section>
+          <section className="dashboard-content">{children}</section>
+          <footer className="dashboard-attribution">
+            Game data by{" "}
+            <a href="https://rawg.io" target="_blank" rel="noreferrer">
+              RAWG
+            </a>
+          </footer>
         </div>
       </div>
     </main>

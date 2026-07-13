@@ -1,36 +1,42 @@
 import Link from "next/link";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type ButtonProps = {
-  children: React.ReactNode;
+  children: ReactNode;
   href?: string;
-  onClick?: () => void;
   variant?: "primary" | "secondary" | "ghost";
-};
+  className?: string;
+  loading?: boolean;
+} & ButtonHTMLAttributes<HTMLButtonElement>;
 
 export default function Button({
   children,
   href,
-  onClick,
   variant = "primary",
+  className = "",
+  loading = false,
+  disabled,
+  type = "button",
+  ...buttonProps
 }: ButtonProps) {
-  const styles = {
-    primary: "bg-white text-slate-950 hover:bg-slate-200",
-    secondary: "border border-slate-700 text-white hover:bg-slate-800",
-    ghost: "text-slate-300 hover:bg-slate-800 hover:text-white",
-  };
-
-  const className = `rounded-lg px-4 py-2 text-sm font-medium transition ${styles[variant]}`;
+  const classes = `pn-button pn-button-${variant} ${className}`.trim();
 
   if (href) {
     return (
-      <Link href={href} className={className}>
+      <Link href={href} className={classes}>
         {children}
       </Link>
     );
   }
 
   return (
-    <button onClick={onClick} className={className}>
+    <button
+      type={type}
+      className={classes}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      {...buttonProps}
+    >
       {children}
     </button>
   );

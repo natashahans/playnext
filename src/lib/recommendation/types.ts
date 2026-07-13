@@ -5,6 +5,8 @@ export type { ExtractedIntent };
 export type RecommendationGame = {
   id: string;
   title: string;
+  background_image?: string | null;
+  released?: string | null;
   rating: number | null;
   genres: string[] | null;
   platforms?: string[] | null;

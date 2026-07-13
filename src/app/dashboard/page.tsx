@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
+import { ArrowRight, Gamepad2, Library, Plus } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -22,16 +24,25 @@ type UserGameRow = {
 
 export default function DashboardPage() {
   const [collection, setCollection] = useState<UserGameRow[]>([]);
+  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
+    let active = true;
+
     async function fetchDashboardData() {
       const { data: userData } = await supabase.auth.getUser();
+
+      if (!active) return;
 
       if (!userData.user) {
         setLoading(false);
         return;
       }
+
+      const name = userData.user.user_metadata?.full_name;
+      setDisplayName(typeof name === "string" ? name.split(" ")[0] : "");
 
       const { data, error } = await supabase
         .from("user_games")
@@ -49,8 +60,10 @@ export default function DashboardPage() {
         .eq("user_id", userData.user.id)
         .order("added_at", { ascending: false });
 
+      if (!active) return;
+
       if (error) {
-        alert(error.message);
+        setErrorMessage("We couldn’t load your collection. Please refresh and try again.");
         setLoading(false);
         return;
       }
@@ -60,109 +73,132 @@ export default function DashboardPage() {
     }
 
     fetchDashboardData();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const recentGames = collection.slice(0, 4);
 
   if (loading) {
-    return <p className="text-slate-400">Loading dashboard...</p>;
+    return (
+      <div className="pn-page-loading" role="status">
+        <span className="dashboard-loading-dot" aria-hidden="true" />
+        Loading your library…
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <Card className="pn-state-card">
+        <h2>Something went wrong</h2>
+        <p>{errorMessage}</p>
+        <Button onClick={() => window.location.reload()}>Try again</Button>
+      </Card>
+    );
   }
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950 p-8">
-          <Badge>Decide now</Badge>
+    <div className="pn-page">
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <h2>
+            {displayName ? `${displayName}, what` : "What"} should you play next?
+          </h2>
 
-          <h1 className="mt-5 max-w-3xl text-4xl font-bold tracking-tight">
-            What should you play next?
-          </h1>
-
-          <p className="mt-4 max-w-2xl text-slate-400">
-            Tell PlayNext your mood, available time, energy, and what kind of
-            experience you want. It will recommend from your real collection.
+          <p>
+            Get one clear recommendation from your collection, based on your mood
+            and the time you have right now.
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button href="/dashboard/recommend">Start recommendation</Button>
+          <div className="home-hero-actions">
+            <Button href="/dashboard/recommend">
+              Decide what to play
+              <ArrowRight size={15} aria-hidden="true" />
+            </Button>
             <Button href="/dashboard/collection" variant="secondary">
               View collection
             </Button>
           </div>
         </div>
 
-        <Card>
-          <p className="text-sm text-slate-400">Collection</p>
-
-          <h2 className="mt-3 text-4xl font-bold">
-            {collection.length} {collection.length === 1 ? "game" : "games"}
-          </h2>
-
-          <p className="mt-2 text-sm text-slate-500">
-            These are the games PlayNext can currently recommend from.
-          </p>
-
-          <div className="mt-5">
-            <Button href="/dashboard/collection" variant="secondary">
-              Manage collection
-            </Button>
+        <div className="home-hero-stat" aria-label={`${collection.length} games in collection`}>
+          <div className="home-hero-stat-icon">
+            <Library size={20} aria-hidden="true" />
           </div>
-        </Card>
+          <span>Your decision library</span>
+          <strong>{collection.length}</strong>
+          <p>{collection.length === 1 ? "game ready" : "games ready"} to recommend</p>
+        </div>
       </section>
 
-      <section>
-        <div className="mb-4 flex items-end justify-between">
+      <section className="pn-section">
+        <div className="pn-section-header">
           <div>
-            <p className="text-sm text-slate-400">Recently added</p>
-            <h2 className="mt-1 text-2xl font-semibold">Your saved games</h2>
+            <span className="pn-eyebrow">Your library</span>
+            <h2>Recently added</h2>
           </div>
 
-          <Button href="/dashboard/collection" variant="ghost">
-            View collection
-          </Button>
+          {recentGames.length > 0 && (
+            <Button href="/dashboard/collection" variant="ghost">
+              View all
+              <ArrowRight size={14} aria-hidden="true" />
+            </Button>
+          )}
         </div>
 
         {recentGames.length === 0 ? (
-          <Card>
-            <h2 className="text-xl font-semibold">No games yet</h2>
-            <p className="mt-2 text-slate-400">
-              Add games to your collection so PlayNext can start making useful
-              recommendations.
+          <Card className="pn-empty-state">
+            <span className="pn-empty-icon" aria-hidden="true">
+              <Gamepad2 size={22} />
+            </span>
+            <h3>Build your decision library</h3>
+            <p>
+              Add a few games you own or want to play. PlayNext will recommend
+              only from this collection.
             </p>
+            <Button href="/dashboard/search">
+              <Plus size={15} aria-hidden="true" />
+              Add your first games
+            </Button>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="game-card-grid">
             {recentGames.map((item) => {
-              const game = Array.isArray(item.games)
-                ? item.games[0]
-                : item.games;
+              const game = Array.isArray(item.games) ? item.games[0] : item.games;
 
               if (!game) return null;
 
               return (
-                <Card key={item.id} className="overflow-hidden p-0">
-                  {game.background_image ? (
-                    <img
-                      src={game.background_image}
-                      alt={game.title}
-                      className="h-48 w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-48 items-center justify-center bg-slate-950 text-slate-500">
-                      No image
-                    </div>
-                  )}
+                <article key={item.id} className="game-card">
+                  <div className="game-card-artwork">
+                    {game.background_image ? (
+                      <Image
+                        src={game.background_image}
+                        alt=""
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 25vw"
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="game-artwork-placeholder">
+                        <Gamepad2 size={24} aria-hidden="true" />
+                      </div>
+                    )}
+                  </div>
 
-                  <div className="p-4">
-                    <h3 className="font-semibold text-white">{game.title}</h3>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="game-card-body">
+                    <h3>{game.title}</h3>
+                    <div className="game-card-badges">
                       {game.genres?.slice(0, 2).map((genre) => (
                         <Badge key={genre}>{genre}</Badge>
                       ))}
                     </div>
                   </div>
-                </Card>
+                </article>
               );
             })}
           </div>

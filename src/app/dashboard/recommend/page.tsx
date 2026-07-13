@@ -1,18 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  Gamepad2,
+  RotateCcw,
+  Sparkles,
+  WandSparkles,
+} from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
 import { scoreGames } from "@/lib/recommendationEngine";
 import type {
+  ExtractedIntent,
   PreviousFeedback,
+  PreviousRecommendation,
   RecommendationGame,
   ScoredGame,
   UserPreferences,
-  ExtractedIntent,
-  PreviousRecommendation,
 } from "@/lib/recommendation/types";
 import { supabase } from "@/lib/supabase";
 
@@ -20,309 +31,382 @@ type UserGameRow = {
   games: RecommendationGame | RecommendationGame[] | null;
 };
 
+const promptSuggestions = [
+  "I have 30 minutes and want something relaxing",
+  "I want a challenging game with strong combat",
+  "I’m tired but still want a good story",
+];
+
 export default function RecommendPage() {
   const [prompt, setPrompt] = useState("");
   const [submittedPrompt, setSubmittedPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [extractedIntent, setExtractedIntent] =
     useState<ExtractedIntent | null>(null);
-  const [recommendedGame, setRecommendedGame] = useState<ScoredGame | null>(
-    null
-  );
+  const [recommendedGame, setRecommendedGame] = useState<ScoredGame | null>(null);
   const [recommendationId, setRecommendationId] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const cleanedPrompt = prompt.trim();
+
+    if (!cleanedPrompt || loading) return;
+
     setLoading(true);
+    setErrorMessage("");
+    setRecommendedGame(null);
+    setExtractedIntent(null);
+    setRecommendationId(null);
 
-    const { data: userData } = await supabase.auth.getUser();
+    try {
+      const { data: userData } = await supabase.auth.getUser();
 
-    if (!userData.user) {
-      alert("You must be logged in.");
-      setLoading(false);
-      return;
-    }
+      if (!userData.user) {
+        throw new Error("Your session has expired. Please log in again.");
+      }
 
-    const intentResponse = await fetch("/api/extract-intent", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ prompt }),
-    });
+      const { data: collectionData, error: collectionError } = await supabase
+        .from("user_games")
+        .select(`
+          games (
+            id,
+            title,
+            background_image,
+            released,
+            rating,
+            genres,
+            platforms,
+            playtime,
+            tags
+          )
+        `)
+        .eq("user_id", userData.user.id);
 
-    if (!intentResponse.ok) {
-      alert("AI intent extraction failed.");
-      setLoading(false);
-      return;
-    }
+      if (collectionError) throw collectionError;
 
-    const intent: ExtractedIntent = await intentResponse.json();
+      const collectionRows = (collectionData ?? []) as unknown as UserGameRow[];
+      const games = collectionRows
+        .map((row) => (Array.isArray(row.games) ? row.games[0] : row.games))
+        .filter(Boolean) as RecommendationGame[];
 
-    const { data: sessionData, error: sessionError } = await supabase
-      .from("recommendation_sessions")
-      .insert({
-        user_id: userData.user.id,
-        user_input: prompt,
-        mood: intent.mood,
-        available_time: intent.availableTime,
-        energy_level: intent.energyLevel,
-        desired_experience: intent.desiredExperience,
-        difficulty_preference: intent.difficultyPreference,
-        preferred_genres: intent.preferredGenres,
-        reference_games: intent.referenceGames,
-      })
-      .select("id")
-      .single();
+      if (games.length === 0) {
+        throw new Error("Add at least one game to your collection before asking PlayNext to decide.");
+      }
 
-    if (sessionError) {
-      alert(sessionError.message);
-      setLoading(false);
-      return;
-    }
+      const intentResponse = await fetch("/api/extract-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: cleanedPrompt }),
+      });
 
-    const { data: collectionData, error: collectionError } = await supabase
-      .from("user_games")
-      .select(`
-        games (
-          id,
-          title,
-          rating,
-          genres,
-          platforms,
-          playtime,
-          tags
+      if (!intentResponse.ok) {
+        throw new Error("PlayNext couldn’t understand that request. Please try rephrasing it.");
+      }
+
+      const intent: ExtractedIntent = await intentResponse.json();
+
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from("feedback")
+        .select(`
+          feedback_type,
+          recommendations ( game_id )
+        `)
+        .eq("user_id", userData.user.id);
+
+      if (feedbackError) throw feedbackError;
+
+      const previousFeedback = (
+        (feedbackData ?? []) as unknown as {
+          feedback_type: string;
+          recommendations: { game_id: string } | { game_id: string }[] | null;
+        }[]
+      )
+        .map((item) => {
+          const recommendation = Array.isArray(item.recommendations)
+            ? item.recommendations[0]
+            : item.recommendations;
+
+          return {
+            game_id: recommendation?.game_id ?? "",
+            feedback_type: item.feedback_type,
+          };
+        })
+        .filter((item) => item.game_id);
+
+      const { data: preferencesData } = await supabase
+        .from("user_preferences")
+        .select(
+          "favorite_genres, preferred_platforms, play_style, difficulty_preference, session_length_preference"
         )
-      `)
-      .eq("user_id", userData.user.id);
-
-    if (collectionError) {
-      alert(collectionError.message);
-      setLoading(false);
-      return;
-    }
-
-    const collectionRows = (collectionData ?? []) as unknown as UserGameRow[];
-
-    const games = collectionRows
-      .map((row) => (Array.isArray(row.games) ? row.games[0] : row.games))
-      .filter(Boolean) as RecommendationGame[];
-
-    if (games.length === 0) {
-      alert("Add games to your collection before starting a recommendation.");
-      setLoading(false);
-      return;
-    }
-
-    const { data: feedbackData, error: feedbackError } = await supabase
-      .from("feedback")
-      .select(`
-        feedback_type,
-        recommendations (
-          game_id
-        )
-      `)
-      .eq("user_id", userData.user.id);
-
-    if (feedbackError) {
-      alert(feedbackError.message);
-      setLoading(false);
-      return;
-    }
-
-    const previousFeedback = (
-      (feedbackData ?? []) as unknown as {
-        feedback_type: string;
-        recommendations:
-          | { game_id: string }
-          | { game_id: string }[]
-          | null;
-      }[]
-    )
-      .map((item) => {
-        const recommendation = Array.isArray(item.recommendations)
-          ? item.recommendations[0]
-          : item.recommendations;
-
-        return {
-          game_id: recommendation?.game_id ?? "",
-          feedback_type: item.feedback_type,
-        };
-      })
-      .filter((item) => item.game_id);
-
-    const { data: preferencesData } = await supabase
-      .from("user_preferences")
-      .select("favorite_genres, preferred_platforms, play_style, difficulty_preference, session_length_preference")
-      .eq("user_id", userData.user.id)
-      .single();
-
-    const { data: previousRecommendationData, error: previousRecommendationError } =
-      await supabase
-        .from("recommendations")
-        .select("game_id, created_at")
         .eq("user_id", userData.user.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .maybeSingle();
 
-    if (previousRecommendationError) {
-      alert(previousRecommendationError.message);
-      setLoading(false);
-      return;
-    } 
-      
-    const scoredGames = scoreGames(
-      games,
-      intent,
-      previousFeedback as PreviousFeedback[],
-      preferencesData as UserPreferences | null,
-      (previousRecommendationData ?? []) as PreviousRecommendation[]
-    );
-    const bestGame = scoredGames[0];
+      const { data: previousRecommendationData, error: previousRecommendationError } =
+        await supabase
+          .from("recommendations")
+          .select("game_id, created_at")
+          .eq("user_id", userData.user.id)
+          .order("created_at", { ascending: false })
+          .limit(10);
 
-    const { data: recommendationData, error: recommendationError } =
-      await supabase
-        .from("recommendations")
+      if (previousRecommendationError) throw previousRecommendationError;
+
+      const scoredGames = scoreGames(
+        games,
+        intent,
+        previousFeedback as PreviousFeedback[],
+        preferencesData as UserPreferences | null,
+        (previousRecommendationData ?? []) as PreviousRecommendation[]
+      );
+      const bestGame = scoredGames[0];
+
+      if (!bestGame) {
+        throw new Error("PlayNext couldn’t find a suitable game in your collection.");
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase
+        .from("recommendation_sessions")
         .insert({
-          session_id: sessionData.id,
           user_id: userData.user.id,
-          game_id: bestGame.id,
-          score: bestGame.score,
-          explanation: bestGame.explanation,
-          score_breakdown: bestGame.scoreBreakdown,
+          user_input: cleanedPrompt,
+          mood: intent.mood,
+          available_time: intent.availableTime,
+          energy_level: intent.energyLevel,
+          desired_experience: intent.desiredExperience,
+          difficulty_preference: intent.difficultyPreference,
+          preferred_genres: intent.preferredGenres,
+          reference_games: intent.referenceGames,
         })
         .select("id")
         .single();
 
-    if (recommendationError) {
-      alert(recommendationError.message);
-      setLoading(false);
-      return;
-    }
+      if (sessionError) throw sessionError;
 
-    setRecommendationId(recommendationData.id);
-    setSubmittedPrompt(prompt);
-    setExtractedIntent(intent);
-    setRecommendedGame(bestGame);
-    setPrompt("");
-    setLoading(false);
+      const { data: recommendationData, error: recommendationError } =
+        await supabase
+          .from("recommendations")
+          .insert({
+            session_id: sessionData.id,
+            user_id: userData.user.id,
+            game_id: bestGame.id,
+            score: bestGame.score,
+            explanation: bestGame.explanation,
+            score_breakdown: bestGame.scoreBreakdown,
+          })
+          .select("id")
+          .single();
+
+      if (recommendationError) throw recommendationError;
+
+      setRecommendationId(recommendationData.id);
+      setSubmittedPrompt(cleanedPrompt);
+      setExtractedIntent(intent);
+      setRecommendedGame(bestGame);
+      setPrompt("");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while creating your recommendation."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function resetRecommendation() {
+    setSubmittedPrompt("");
+    setExtractedIntent(null);
+    setRecommendedGame(null);
+    setRecommendationId(null);
+    setErrorMessage("");
   }
 
   const intentItems = extractedIntent
     ? [
-        ["Mood", extractedIntent.mood],
+        ["Mood", extractedIntent.mood || "Not specified"],
         [
-          "Available time",
+          "Time",
           extractedIntent.availableTime
             ? `${extractedIntent.availableTime} minutes`
-            : "Unknown",
+            : "Flexible",
         ],
-        ["Energy level", extractedIntent.energyLevel],
-        ["Desired experience", extractedIntent.desiredExperience],
-        ["Difficulty preference", extractedIntent.difficultyPreference],
-        [
-          "Reference games",
-          extractedIntent.referenceGames.length > 0
-            ? extractedIntent.referenceGames.join(", ")
-            : "None",
-        ],
+        ["Energy", extractedIntent.energyLevel || "Unknown"],
+        ["Experience", extractedIntent.desiredExperience || "Open"],
+        ["Difficulty", extractedIntent.difficultyPreference || "Any"],
       ]
     : [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm text-slate-400">Decide</p>
-        <h1 className="mt-2 text-3xl font-bold">
-          What should I play right now?
-        </h1>
-        <p className="mt-3 max-w-2xl text-slate-400">
-          Describe your mood, time, energy, and desired experience. Gemini
-          extracts your intent, then PlayNext scores games from your collection.
+    <div className="pn-page decide-page">
+      <section className="decide-intro">
+        <span className="pn-kicker">
+          <WandSparkles size={14} aria-hidden="true" />
+          One clear recommendation
+        </span>
+        <h2>Describe the session you want right now.</h2>
+        <p>
+          Mood, time, energy, difficulty—write naturally. PlayNext will understand
+          the context and rank games from your own collection.
         </p>
-      </div>
+      </section>
 
-      <Card>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block text-sm font-medium text-slate-300">
-            Describe your current context
-          </label>
+      {!recommendedGame && (
+        <Card className="decide-prompt-card">
+          <form onSubmit={handleSubmit}>
+            <label htmlFor="play-context">What are you in the mood for?</label>
+            <textarea
+              id="play-context"
+              value={prompt}
+              onChange={(event) => {
+                setPrompt(event.target.value);
+                setErrorMessage("");
+              }}
+              placeholder="I’m tired, I have about 45 minutes, and I want something relaxing with a good story…"
+              maxLength={500}
+              required
+            />
 
-          <textarea
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Example: I'm tired, I only have 45 minutes, and I want something relaxing and not too difficult."
-            className="min-h-36 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white placeholder:text-slate-500"
-            required
-          />
+            <div className="decide-prompt-footer">
+              <span>{prompt.length}/500</span>
+              <Button type="submit" loading={loading} disabled={!prompt.trim()}>
+                {!loading && <Sparkles size={15} aria-hidden="true" />}
+                {loading ? "Finding your best match…" : "Decide for me"}
+              </Button>
+            </div>
+          </form>
 
-          <Button>{loading ? "Finding best game..." : "Decide"}</Button>
-        </form>
-      </Card>
+          <div className="decide-suggestions">
+            <span>Try an example</span>
+            <div>
+              {promptSuggestions.map((suggestion) => (
+                <button
+                  type="button"
+                  key={suggestion}
+                  onClick={() => setPrompt(suggestion)}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {errorMessage && (
+        <div className="pn-inline-error" role="alert">
+          <strong>We couldn’t complete that recommendation.</strong>
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {loading && (
+        <div className="decide-progress" role="status">
+          <span className="dashboard-loading-dot" aria-hidden="true" />
+          <div>
+            <strong>Evaluating your collection</strong>
+            <p>Understanding your context and comparing the strongest matches.</p>
+          </div>
+        </div>
+      )}
 
       {submittedPrompt && extractedIntent && recommendedGame && (
-        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <Card>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-slate-400">Structured intent</p>
-                <h2 className="mt-2 text-xl font-semibold">
-                  User context extracted
-                </h2>
+        <section className="recommendation-result">
+          <div className="recommendation-artwork">
+            {recommendedGame.background_image ? (
+              <Image
+                src={recommendedGame.background_image}
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 900px) 100vw, 42vw"
+                className="object-cover"
+                unoptimized
+              />
+            ) : (
+              <div className="game-artwork-placeholder">
+                <Gamepad2 size={34} aria-hidden="true" />
               </div>
+            )}
+          </div>
 
-              <Badge>Gemini extraction</Badge>
-            </div>
-
-            <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-300">
-              “{submittedPrompt}”
-            </p>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {intentItems.map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-xl border border-slate-800 bg-slate-950 p-4"
-                >
-                  <p className="text-sm text-slate-400">{label}</p>
-                  <p className="mt-1 text-sm text-white">{value}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <div className="flex items-center justify-between gap-4">
+          <div className="recommendation-content">
+            <div className="recommendation-heading">
               <div>
-                <p className="text-sm text-slate-400">Recommended game</p>
-                <h2 className="mt-2 text-3xl font-bold">
-                  {recommendedGame.title}
-                </h2>
+                <span className="pn-eyebrow">Your best match</span>
+                <h2>{recommendedGame.title}</h2>
               </div>
-
-              <Badge>{recommendedGame.score}% fit</Badge>
+              <div className="recommendation-score">
+                <strong>{recommendedGame.score}</strong>
+                <span>% fit</span>
+              </div>
             </div>
 
-            <p className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-300">
-              {recommendedGame.explanation}
-            </p>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {recommendedGame.genres?.map((genre) => (
+            <div className="recommendation-meta">
+              {recommendedGame.genres?.slice(0, 4).map((genre) => (
                 <Badge key={genre}>{genre}</Badge>
               ))}
+              {extractedIntent.availableTime && (
+                <Badge>
+                  <Clock3 size={11} aria-hidden="true" />
+                  {extractedIntent.availableTime} min session
+                </Badge>
+              )}
             </div>
 
-            <p className="mt-5 text-sm text-slate-500">
-              Gemini extracts intent. The final recommendation is selected by
-              the custom PlayNext scoring engine.
-            </p>
+            <div className="recommendation-explanation">
+              <CheckCircle2 size={18} aria-hidden="true" />
+              <p>{recommendedGame.explanation}</p>
+            </div>
+
+            <p className="recommendation-context">“{submittedPrompt}”</p>
+
+            <details className="recommendation-details">
+              <summary>
+                Why this recommendation
+                <ChevronDown size={15} aria-hidden="true" />
+              </summary>
+
+              <div className="recommendation-intent-grid">
+                {intentItems.map(([label, value]) => (
+                  <div key={label}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+
+              <div className="recommendation-breakdown">
+                {recommendedGame.scoreBreakdown.map((item, index) => (
+                  <div key={`${item.label}-${index}`}>
+                    <span>{item.label}</span>
+                    <strong className={item.points >= 0 ? "score-positive" : "score-negative"}>
+                      {item.points >= 0 ? "+" : ""}
+                      {item.points}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            </details>
 
             {recommendationId && (
               <FeedbackButtons recommendationId={recommendationId} />
             )}
-          </Card>
-        </div>
+
+            <div className="recommendation-actions">
+              <Button onClick={resetRecommendation} variant="secondary">
+                <RotateCcw size={14} aria-hidden="true" />
+                Ask again
+              </Button>
+              <Button href="/dashboard/collection" variant="ghost">
+                View collection
+                <ArrowRight size={14} aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        </section>
       )}
     </div>
   );

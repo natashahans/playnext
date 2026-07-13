@@ -1,26 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { RawgGame } from "@/lib/rawg";
 
 export default function AddRawgGameButton({
   game,
+  alreadyAdded = false,
   onAdded,
 }: {
   game: RawgGame;
+  alreadyAdded?: boolean;
   onAdded?: () => void;
 }) {
-  const [added, setAdded] = useState(false);
+  const [added, setAdded] = useState(alreadyAdded);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function handleAddGame() {
+    if (loading || added) return;
+
     setLoading(true);
+    setErrorMessage("");
 
     const { data: userData } = await supabase.auth.getUser();
 
     if (!userData.user) {
-      alert("You must be logged in.");
+      setErrorMessage("Please log in again.");
       setLoading(false);
       return;
     }
@@ -37,8 +44,7 @@ export default function AddRawgGameButton({
           rating: game.rating,
           playtime: game.playtime,
           genres: game.genres?.map((genre) => genre.name) ?? [],
-          platforms:
-            game.platforms?.map((item) => item.platform.name) ?? [],
+          platforms: game.platforms?.map((item) => item.platform.name) ?? [],
           tags:
             game.tags
               ?.filter((tag) => /^[\x00-\x7F\s\-':,&()]+$/.test(tag.name))
@@ -50,7 +56,7 @@ export default function AddRawgGameButton({
       .single();
 
     if (gameError) {
-      alert(gameError.message);
+      setErrorMessage("This game couldn’t be added. Please try again.");
       setLoading(false);
       return;
     }
@@ -70,23 +76,28 @@ export default function AddRawgGameButton({
       );
 
     if (userGameError) {
-      alert(userGameError.message);
+      setErrorMessage("This game couldn’t be added to your collection.");
       setLoading(false);
       return;
     }
 
     setAdded(true);
-    onAdded?.();
     setLoading(false);
+    onAdded?.();
   }
 
   return (
-    <button
-      onClick={handleAddGame}
-      disabled={loading || added}
-      className="mt-4 w-full rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-    >
-      {added ? "Added to collection" : loading ? "Adding..." : "Add to collection"}
-    </button>
+    <div className="game-add-action">
+      <button
+        type="button"
+        onClick={handleAddGame}
+        disabled={loading || added}
+        className={added ? "game-add-button game-add-button-added" : "game-add-button"}
+      >
+        {added ? <Check size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
+        {added ? "In collection" : loading ? "Adding…" : "Add to collection"}
+      </button>
+      {errorMessage && <span role="alert">{errorMessage}</span>}
+    </div>
   );
 }
