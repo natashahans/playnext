@@ -31,18 +31,43 @@ export default function PlatformsPage() {
       return;
     }
 
-    const { error } = await supabase
+    const { data: existingPreference, error: preferenceError } = await supabase
       .from("user_preferences")
-      .update({
-        preferred_platforms: selectedPlatforms,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userData.user.id);
+      .select("id")
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
 
-    if (error) {
-      alert(error.message);
+    if (preferenceError) {
+      alert(preferenceError.message);
       setLoading(false);
       return;
+    }
+
+    if (existingPreference) {
+      const { error } = await supabase
+        .from("user_preferences")
+        .update({
+          preferred_platforms: selectedPlatforms,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userData.user.id);
+
+      if (error) {
+        alert(error.message);
+        setLoading(false);
+        return;
+      }
+    } else {
+      const { error } = await supabase.from("user_preferences").insert({
+        user_id: userData.user.id,
+        preferred_platforms: selectedPlatforms,
+      });
+
+      if (error) {
+        alert(error.message);
+        setLoading(false);
+        return;
+      }
     }
 
     router.push("/onboarding/collection");
@@ -52,7 +77,7 @@ export default function PlatformsPage() {
     <OnboardingShell
       step={2}
       totalSteps={ONBOARDING_TOTAL_STEPS}
-      title="Where do you usually play?"
+      title="Where do you play?"
       description="Choose every platform you regularly play on."
       backHref="/onboarding/genres"
       nextLabel="Continue"

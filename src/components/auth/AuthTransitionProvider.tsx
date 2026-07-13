@@ -56,7 +56,7 @@ export default function AuthTransitionProvider({
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
-        setCheckingAuth(false);
+        window.setTimeout(() => setCheckingAuth(false), 0);
         return;
       }
 
@@ -78,11 +78,13 @@ export default function AuthTransitionProvider({
   }, [router]);
 
   useEffect(() => {
-    setExiting(false);
+    window.requestAnimationFrame(() => setExiting(false));
   }, [pathname]);
 
   useEffect(() => {
-    setHasMounted(true);
+    window.requestAnimationFrame(() => {
+      setHasMounted(true);
+    });
   }, []);
 
   if (checkingAuth) {

@@ -38,7 +38,9 @@ export default function OnboardingLayout({
     return (
       <main className="onboarding-page">
         <div className="flex min-h-screen items-center justify-center">
-          <p className="text-[13px] text-white/45">Loading PlayNext...</p>
+          <p className="text-[13px] text-[#777982]">
+            Loading PlayNext...
+          </p>
         </div>
       </main>
     );

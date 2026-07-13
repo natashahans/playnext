@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AuthLogo from "@/components/auth/AuthLogo";
 import type { ReactNode } from "react";
 
 type OnboardingShellProps = {
@@ -12,7 +13,24 @@ type OnboardingShellProps = {
   onNext?: () => void;
   nextDisabled?: boolean;
   loading?: boolean;
+  selectionStatus?: ReactNode;
+  eyebrow?: string;
 };
+
+const STEP_LABELS = [
+  {
+    title: "Your taste",
+    description: "Tell us what kinds of games you enjoy.",
+  },
+  {
+    title: "Your platforms",
+    description: "Choose where you normally play.",
+  },
+  {
+    title: "Your collection",
+    description: "Add games you already own.",
+  },
+];
 
 export default function OnboardingShell({
   step,
@@ -25,32 +43,59 @@ export default function OnboardingShell({
   onNext,
   nextDisabled = false,
   loading = false,
+  selectionStatus,
+  eyebrow = "Your gaming taste",
 }: OnboardingShellProps) {
-  const progress = (step / totalSteps) * 100;
+  const completedSteps = step - 1;
+  const progress = (completedSteps / totalSteps) * 100;
 
   return (
     <main className="onboarding-page">
+      <header className="onboarding-topbar">
+        <Link href="/" className="onboarding-logo">
+          <AuthLogo />
+          <span className="onboarding-logo-text">PlayNext</span>
+        </Link>
+      </header>
+
       <div className="onboarding-shell">
-        <header className="onboarding-brand">
-          <Link href="/">PlayNext</Link>
-        </header>
+        <div className={`onboarding-card ${step === 3 ? "onboarding-card-collection" : ""}`}>
+          <div className="onboarding-card-inner">
+            <div className="onboarding-card-header">
+              <div className="onboarding-hero-meta">
+                <span className="onboarding-eyebrow">{eyebrow}</span>
+                <span className="onboarding-step-pill">
+                  Step {step} of {totalSteps}
+                </span>
+              </div>
 
-        <div className="onboarding-progress">
-          <div
-            className="onboarding-progress-fill"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+              <h1 className="onboarding-title">{title}</h1>
 
-        <section className="onboarding-content">
-          <div className="onboarding-inner">
-            <h1 className="onboarding-title">{title}</h1>
+              {description && (
+                <p className="onboarding-description">{description}</p>
+              )}
 
-            {description && (
-              <p className="onboarding-description">{description}</p>
-            )}
+              <div className="onboarding-progress-summary">
+                <div className="onboarding-progress-copy">
+                  <span className="onboarding-progress-label">
+                    Onboarding progress
+                  </span>
+                  <strong>{Math.round(progress)}%</strong>
+                </div>
+                <div className="onboarding-progress">
+                  <div
+                    className="onboarding-progress-fill"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            </div>
 
             <div className="onboarding-options">{children}</div>
+          </div>
+
+          <div className="onboarding-footer">
+            <div className="onboarding-footer-status">{selectionStatus}</div>
 
             <div className="onboarding-actions">
               {backHref && (
@@ -61,6 +106,7 @@ export default function OnboardingShell({
 
               {onNext && (
                 <button
+                  type="button"
                   onClick={onNext}
                   disabled={nextDisabled || loading}
                   className="onboarding-button-primary"
@@ -70,7 +116,7 @@ export default function OnboardingShell({
               )}
             </div>
           </div>
-        </section>
+        </div>
       </div>
     </main>
   );

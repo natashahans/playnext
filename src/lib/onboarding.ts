@@ -24,5 +24,4 @@ export const PLATFORMS = [
   "PlayStation",
   "Xbox",
   "Nintendo Switch",
-  "Steam Deck",
 ];

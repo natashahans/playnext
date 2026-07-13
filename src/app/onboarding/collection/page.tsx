@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import OnboardingShell from "@/components/onboarding/OnboardingShell";
 import { searchRawgGames, type RawgGame } from "@/lib/rawg";
@@ -15,11 +16,12 @@ export default function OnboardingCollectionPage() {
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const resultsToShow = query.trim().length < 2 ? [] : results;
+
   useEffect(() => {
     const value = query.trim();
 
     if (value.length < 2) {
-      setResults([]);
       return;
     }
 
@@ -130,8 +132,8 @@ export default function OnboardingCollectionPage() {
     <OnboardingShell
       step={3}
       totalSteps={3}
-      title="Build your collection"
-      description="Search for games you own. PlayNext will recommend from your real library."
+      title="Build your library"
+      description="Add a few games you already own so PlayNext can tailor recommendations to your real collection."
       backHref="/onboarding/platforms"
       nextLabel="Start using PlayNext"
       nextDisabled={addedGames.length === 0 || saving}
@@ -156,22 +158,22 @@ export default function OnboardingCollectionPage() {
                   ? "Searching..."
                   : "Search results"}
               </h3>
-              <span>{results.length} games</span>
+              <span>{resultsToShow.length} games</span>
             </div>
 
             {query.trim().length < 2 ? (
               <div className="collection-empty">
-                <p>Search for any game</p>
-                <span>Try Hades, Elden Ring, Cyberpunk, or Stardew Valley.</span>
+                <p>Search for a game to get started</p>
+                <span>Start typing a game title above. Results will appear here instantly.</span>
               </div>
-            ) : results.length === 0 && !searching ? (
+            ) : resultsToShow.length === 0 && !searching ? (
               <div className="collection-empty">
                 <p>No games found</p>
                 <span>Try another search term.</span>
               </div>
             ) : (
               <div className="collection-results">
-                {results.map((game) => {
+                {resultsToShow.map((game) => {
                   const added = addedGames.some((item) => item.id === game.id);
 
                   return (
@@ -181,7 +183,15 @@ export default function OnboardingCollectionPage() {
                       className="collection-game-row"
                     >
                       {game.background_image ? (
-                        <img src={game.background_image} alt={game.name} />
+                        <div className="relative h-12 w-9 overflow-hidden rounded-lg">
+                          <Image
+                            src={game.background_image}
+                            alt={game.name}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        </div>
                       ) : (
                         <div className="collection-game-placeholder" />
                       )}
@@ -222,7 +232,15 @@ export default function OnboardingCollectionPage() {
                     className="collection-added-game"
                   >
                     {game.background_image ? (
-                      <img src={game.background_image} alt={game.name} />
+                      <div className="relative h-12 w-9 overflow-hidden rounded-lg">
+                        <Image
+                          src={game.background_image}
+                          alt={game.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
                     ) : (
                       <div className="collection-game-placeholder" />
                     )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AddRawgGameButton from "@/components/games/AddRawgGameButton";
 import Button from "@/components/ui/Button";
@@ -103,11 +104,15 @@ export default function OnboardingAddGamesPage() {
           {games.map((game) => (
             <Card key={game.id} className="overflow-hidden p-0">
               {game.background_image ? (
-                <img
-                  src={game.background_image}
-                  alt={game.name}
-                  className="h-52 w-full object-cover"
-                />
+                <div className="relative h-52 w-full">
+                  <Image
+                    src={game.background_image}
+                    alt={game.name}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
               ) : (
                 <div className="flex h-52 items-center justify-center bg-slate-950 text-slate-500">
                   No image
