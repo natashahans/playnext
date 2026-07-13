@@ -1,14 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import {
+  Ban,
+  Check,
+  Clock3,
+  Gauge,
+  Meh,
+  ThumbsUp,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const feedbackOptions = [
-  { type: "liked", label: "Liked" },
-  { type: "not_in_mood", label: "Not in mood" },
-  { type: "too_long", label: "Too long" },
-  { type: "too_difficult", label: "Too difficult" },
-  { type: "not_interested", label: "Not interested" },
+  { type: "liked", label: "Great match", icon: ThumbsUp },
+  { type: "not_in_mood", label: "Not my mood", icon: Meh },
+  { type: "too_long", label: "Too long", icon: Clock3 },
+  { type: "too_difficult", label: "Too difficult", icon: Gauge },
+  { type: "not_interested", label: "Not interested", icon: Ban },
 ];
 
 export default function FeedbackButtons({
@@ -17,55 +25,102 @@ export default function FeedbackButtons({
   recommendationId: string;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  async function handleFeedback(type: string) {
+  async function handleSave() {
+    if (!selected || saving || saved) return;
+
+    setSaving(true);
+    setErrorMessage("");
+
     const { data: userData } = await supabase.auth.getUser();
 
     if (!userData.user) {
-      alert("You must be logged in.");
+      setErrorMessage("Your session has expired. Please log in again.");
+      setSaving(false);
       return;
     }
 
     const { error } = await supabase.from("feedback").insert({
       user_id: userData.user.id,
       recommendation_id: recommendationId,
-      feedback_type: type,
+      feedback_type: selected,
+      reason: reason.trim() || null,
     });
 
     if (error) {
-      alert(error.message);
+      setErrorMessage("Your feedback could not be saved. Please try again.");
+      setSaving(false);
       return;
     }
 
-    setSelected(type);
+    setSaved(true);
+    setSaving(false);
+  }
+
+  if (saved) {
+    return (
+      <div className="ai-feedback-success" role="status">
+        <Check size={16} aria-hidden="true" />
+        <div>
+          <strong>Feedback saved</strong>
+          <span>Future recommendations will use this signal.</span>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="mt-6">
-      <p className="text-sm text-slate-400">Was this recommendation useful?</p>
+    <section className="ai-feedback">
+      <div className="ai-feedback-heading">
+        <div>
+          <span>Teach PlayNext</span>
+          <h3>Was this recommendation useful?</h3>
+        </div>
+        <p>Your response becomes a weighted signal next time.</p>
+      </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {feedbackOptions.map((option) => (
-          <button
-            key={option.type}
-            onClick={() => handleFeedback(option.type)}
-            disabled={selected !== null}
-            className={`rounded-full border px-3 py-1 text-xs transition ${
-              selected === option.type
-                ? "border-white bg-white text-slate-950"
-                : "border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div className="ai-feedback-options">
+        {feedbackOptions.map((option) => {
+          const Icon = option.icon;
+          return (
+            <button
+              type="button"
+              key={option.type}
+              onClick={() => setSelected(option.type)}
+              aria-pressed={selected === option.type}
+              className={selected === option.type ? "ai-feedback-option ai-feedback-option-active" : "ai-feedback-option"}
+            >
+              <Icon size={14} aria-hidden="true" />
+              {option.label}
+            </button>
+          );
+        })}
       </div>
 
       {selected && (
-        <p className="mt-3 text-sm text-slate-500">
-          Feedback saved. This will help improve future recommendations.
-        </p>
+        <div className="ai-feedback-detail">
+          <label htmlFor="feedback-reason">Anything else? <span>Optional</span></label>
+          <textarea
+            id="feedback-reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="For example: I wanted less combat tonight…"
+            maxLength={240}
+          />
+          <div>
+            <span>{reason.length}/240</span>
+            <button type="button" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : "Save feedback"}
+            </button>
+          </div>
+        </div>
       )}
-    </div>
+
+      {errorMessage && <p className="ai-feedback-error" role="alert">{errorMessage}</p>}
+    </section>
   );
 }

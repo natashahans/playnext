@@ -12,11 +12,22 @@ export type RecommendationGame = {
   platforms?: string[] | null;
   playtime?: number | null;
   tags?: string[] | null;
+  status?: string | null;
+};
+
+export type FeedbackGameSnapshot = {
+  id: string;
+  genres: string[] | null;
+  platforms?: string[] | null;
+  playtime?: number | null;
+  tags?: string[] | null;
 };
 
 export type PreviousFeedback = {
   game_id: string;
   feedback_type: string;
+  reason?: string | null;
+  game?: FeedbackGameSnapshot | null;
 };
 
 export type UserPreferences = {
@@ -27,13 +38,19 @@ export type UserPreferences = {
   session_length_preference: string | null;
 };
 
+export type ScoreBreakdownItem = {
+  category: "Live context" | "Saved preferences" | "Learned feedback" | "Recommendation history" | "Game quality";
+  label: string;
+  points: number;
+  detail: string;
+};
+
 export type ScoredGame = RecommendationGame & {
   score: number;
   explanation: string;
-  scoreBreakdown: {
-    label: string;
-    points: number;
-  }[];
+  scoreBreakdown: ScoreBreakdownItem[];
+  matchReasons: string[];
+  cautions: string[];
 };
 
 export type PreviousRecommendation = {
