@@ -600,6 +600,14 @@ export default function RecommendPage() {
               <textarea
                 ref={composerRef}
                 value={draft}
+                onFocus={() => {
+                  window.setTimeout(() => {
+                    composerRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    });
+                  }, 180);
+                }}
                 onChange={(event) => {
                   setDraft(event.target.value);
                   setErrorMessage("");

@@ -21,11 +21,89 @@
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-sm: 0 10px 28px rgba(15, 23, 42, 0.07);
   --shadow-md: 0 22px 54px rgba(15, 23, 42, 0.1);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  scroll-padding-top: 84px;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
+  min-width: 320px;
+  min-height: 100vh;
+  min-height: 100dvh;
   font-size: 15px;
   line-height: 1.55;
+  overflow-x: clip;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+.dashboard-shell,
+.dashboard-frame,
+.dashboard-workspace,
+.auth-page,
+.auth-shell,
+.onboarding-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.dashboard-workspace,
+.dashboard-content,
+.home-command-page,
+.ai-decide-page,
+.lib-page,
+.discover-page,
+.ai-decide-layout,
+.ai-chat-card,
+.ai-context-card,
+.collection-v2-card,
+.history-v2-card,
+.settings-v2-section,
+.onboarding-card,
+.onboarding-card-inner,
+.onboarding-options {
+  min-width: 0;
+}
+
+.home-command-header h1,
+.home-command-hero-copy h2,
+.home-recent-copy,
+.discover-card-copy h3,
+.collection-v2-title h3,
+.history-v2-heading h2,
+.history-v2-content,
+.settings-profile-card h2,
+.settings-profile-card p,
+.settings-v2-heading,
+.ai-message p,
+.ai-recommendation-heading h2,
+.ai-recommendation-explanation,
+.ai-match-reasons,
+.onboarding-title,
+.onboarding-description {
+  overflow-wrap: anywhere;
+}
+
+.discover-card-copy h3,
+.collection-v2-title h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 button:active:not(:disabled),
@@ -179,7 +257,7 @@ button:active:not(:disabled),
 .dashboard-content {
   max-width: 1540px;
   padding: clamp(28px, 3.2vw, 48px);
-  padding-bottom: 64px;
+  padding-bottom: calc(64px + var(--safe-bottom));
 }
 
 /* Shared controls */
@@ -544,7 +622,8 @@ button:active:not(:disabled),
 @media (max-width: 900px) {
   .dashboard-topbar {
     height: 64px;
-    padding: 0 18px;
+    padding-right: max(18px, var(--safe-right));
+    padding-left: max(18px, var(--safe-left));
   }
 
   .dashboard-mobile-brand {
@@ -576,10 +655,13 @@ button:active:not(:disabled),
   }
 
   .dashboard-content {
-    padding: 26px 20px 104px;
+    padding: 26px max(20px, var(--safe-right)) calc(112px + var(--safe-bottom)) max(20px, var(--safe-left));
   }
 
   .dashboard-mobile-nav {
+    right: max(8px, var(--safe-right));
+    bottom: max(8px, var(--safe-bottom));
+    left: max(8px, var(--safe-left));
     height: 72px;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     border-radius: 20px;
@@ -601,6 +683,30 @@ button:active:not(:disabled),
   .home-command-hero {
     min-height: 360px;
   }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  .ai-chat-thread {
+    overscroll-behavior: contain;
+    scroll-padding-bottom: 164px;
+  }
+
+  .ai-chat-composer-wrap {
+    position: sticky;
+    bottom: 0;
+    z-index: 12;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(14px);
+  }
+
+  .discover-card-view {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @media (max-width: 620px) {
@@ -620,7 +726,7 @@ button:active:not(:disabled),
   }
 
   .dashboard-content {
-    padding: 22px 16px 100px;
+    padding: 22px max(16px, var(--safe-right)) calc(108px + var(--safe-bottom)) max(16px, var(--safe-left));
   }
 
   .home-command-page,
@@ -677,7 +783,7 @@ button:active:not(:disabled),
   }
 
   .ai-chat-composer-wrap {
-    padding: 14px;
+    padding: 14px 14px calc(14px + var(--safe-bottom));
   }
 
   .ai-match-score {
@@ -688,9 +794,9 @@ button:active:not(:disabled),
 
 @media (max-width: 390px) {
   .dashboard-mobile-nav {
-    right: 6px;
-    bottom: 6px;
-    left: 6px;
+    right: max(6px, var(--safe-right));
+    bottom: max(6px, var(--safe-bottom));
+    left: max(6px, var(--safe-left));
   }
 
   .dashboard-mobile-nav-item {
@@ -699,6 +805,259 @@ button:active:not(:disabled),
 
   .dashboard-topbar-context > div:last-child > span {
     display: none;
+  }
+}
+
+/* Touch devices must not depend on hover and every primary action is finger-sized. */
+@media (pointer: coarse) {
+  .pn-button,
+  .auth-button,
+  .onboarding-button-primary,
+  .onboarding-button-secondary,
+  .dashboard-settings-button,
+  .dashboard-logout-button,
+  .dashboard-mobile-nav-item,
+  .discover-chips button,
+  .discover-rail-controls button,
+  .game-add-button,
+  .ai-source-switch button,
+  .ai-chat-suggestions button,
+  .ai-chat-composer button,
+  .ai-feedback-options button,
+  .ai-discovery-actions a,
+  .ai-recommendation-actions a,
+  .collection-v2-actions a,
+  .collection-v2-actions button,
+  .collection-status-control select,
+  .history-v2-controls button,
+  .history-v2-footer a,
+  .history-v2-details summary,
+  .settings-v2-chip-grid button,
+  .settings-choice-grid button,
+  .settings-platform-grid button,
+  .genre-card,
+  .choice-chip {
+    min-height: 44px;
+  }
+
+  .discover-card-view {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Narrow phones and high browser zoom: preserve hierarchy without horizontal scrolling. */
+@media (max-width: 480px) {
+  .auth-shell {
+    min-height: 100dvh;
+    align-items: center;
+    padding: calc(28px + var(--safe-top)) max(18px, var(--safe-right)) calc(32px + var(--safe-bottom)) max(18px, var(--safe-left));
+  }
+
+  .auth-card {
+    max-width: 100%;
+  }
+
+  .onboarding-topbar {
+    padding-right: max(16px, var(--safe-right));
+    padding-left: max(16px, var(--safe-left));
+  }
+
+  .onboarding-shell {
+    padding: 18px max(12px, var(--safe-right)) calc(28px + var(--safe-bottom)) max(12px, var(--safe-left));
+  }
+
+  .onboarding-card {
+    border-radius: 18px;
+    padding: 22px 16px 16px;
+  }
+
+  .onboarding-title {
+    font-size: clamp(29px, 9vw, 34px);
+  }
+
+  .onboarding-progress-summary,
+  .onboarding-footer,
+  .home-command-header,
+  .lib-page-header,
+  .discover-page-header,
+  .history-v2-heading,
+  .ai-recommendation-heading,
+  .ai-feedback-heading {
+    align-items: stretch;
+  }
+
+  .onboarding-progress,
+  .onboarding-actions,
+  .onboarding-actions > *,
+  .home-command-header .pn-button,
+  .lib-page-header .pn-button {
+    width: 100%;
+  }
+
+  .dashboard-topbar-context {
+    gap: 8px;
+  }
+
+  .dashboard-topbar-actions {
+    flex: 0 0 auto;
+  }
+
+  .dashboard-mobile-nav {
+    height: 70px;
+    padding: 7px 5px;
+  }
+
+  .dashboard-mobile-nav-item {
+    min-width: 0;
+    padding-inline: 2px;
+  }
+
+  .home-command-header,
+  .lib-page-header,
+  .discover-page-header {
+    gap: 16px;
+  }
+
+  .home-command-hero-actions,
+  .ai-discovery-actions,
+  .ai-recommendation-actions,
+  .collection-v2-actions,
+  .history-v2-footer {
+    width: 100%;
+  }
+
+  .home-command-hero-actions > *,
+  .ai-discovery-actions > *,
+  .ai-recommendation-actions > *,
+  .collection-v2-actions > * {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ai-decide-header h1 {
+    font-size: clamp(32px, 10vw, 38px);
+  }
+
+  .ai-chat-toolbar,
+  .ai-source-control,
+  .ai-recommendation-heading,
+  .ai-feedback-heading {
+    gap: 12px;
+  }
+
+  .ai-source-control {
+    width: 100%;
+  }
+
+  .ai-source-switch {
+    width: 100%;
+  }
+
+  .ai-source-switch button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .ai-chat-thread,
+  .ai-chat-thread.is-empty {
+    min-height: 320px;
+  }
+
+  .ai-message {
+    max-width: 100%;
+  }
+
+  .ai-chat-suggestions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .ai-chat-suggestions button {
+    width: 100%;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .ai-score-details[open] article,
+  .ai-context-grid,
+  .history-v2-context,
+  .settings-choice-grid,
+  .settings-platform-grid,
+  .genre-grid,
+  .choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-match-score {
+    flex: 0 0 auto;
+  }
+
+  .history-v2-footer,
+  .settings-profile-summary {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Short landscape phones: prioritise usable height and keep navigation compact. */
+@media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
+  html {
+    scroll-padding-top: 64px;
+  }
+
+  .dashboard-topbar {
+    height: 54px;
+  }
+
+  .dashboard-content {
+    padding-top: 18px;
+    padding-bottom: calc(72px + var(--safe-bottom));
+  }
+
+  .dashboard-mobile-nav {
+    height: 56px;
+    border-radius: 16px;
+    padding: 5px 8px;
+  }
+
+  .dashboard-mobile-nav-item {
+    height: 46px;
+    min-height: 46px;
+  }
+
+  .dashboard-mobile-nav-item span {
+    display: none;
+  }
+
+  .auth-shell {
+    align-items: flex-start;
+    padding-top: calc(24px + var(--safe-top));
+  }
+
+  .home-command-hero {
+    min-height: 330px;
+  }
+
+  .ai-chat-thread,
+  .ai-chat-thread.is-empty {
+    min-height: 210px;
+    max-height: 52dvh;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-border: #c0c7d2;
+    --color-border-strong: #8d98a8;
+    --color-muted: #4f5867;
+  }
+
+  .dashboard-nav-item-active,
+  .pn-button-primary,
+  .game-add-button {
+    outline: 1px solid currentColor;
   }
 }
 

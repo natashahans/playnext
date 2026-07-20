@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import "./add-games.css";
@@ -16,6 +16,13 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "PlayNext",
   description: "AI-powered game backlog decision support system",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#101520",
 };
 
 export default function RootLayout({
