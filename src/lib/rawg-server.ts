@@ -13,8 +13,7 @@ type RawgListResponse<T> = {
 const RAWG_BASE_URL = "https://api.rawg.io/api";
 
 function getApiKey() {
-  const apiKey =
-    process.env.RAWG_API_KEY ?? process.env.NEXT_PUBLIC_RAWG_API_KEY;
+  const apiKey = process.env.RAWG_API_KEY;
 
   if (!apiKey) {
     throw new Error(
@@ -280,10 +279,12 @@ export async function getDiscoveryGames(): Promise<DiscoveryPayload> {
   };
 }
 
+export async function getCatalogueGame(slug: string) {
+  return rawgFetch<RawgGameDetail>(`/games/${encodeURIComponent(slug)}`);
+}
+
 export async function getGameDetails(slug: string) {
-  const game = await rawgFetch<RawgGameDetail>(
-    `/games/${encodeURIComponent(slug)}`
-  );
+  const game = await getCatalogueGame(slug);
 
   const screenshotsPromise = rawgFetch<RawgListResponse<RawgScreenshot>>(
     `/games/${encodeURIComponent(slug)}/screenshots`,

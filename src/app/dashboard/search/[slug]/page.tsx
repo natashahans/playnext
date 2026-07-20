@@ -18,6 +18,7 @@ import AddRawgGameButton from "@/components/games/AddRawgGameButton";
 import GameRail from "@/components/games/GameRail";
 import type { GameDetailPayload } from "@/lib/rawg";
 import { supabase } from "@/lib/supabase";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 
 type ExistingGameRow = {
   games: { rawg_id: number | null } | { rawg_id: number | null }[] | null;
@@ -45,7 +46,7 @@ export default function GameDetailsPage() {
 
     async function loadDetails() {
       const [detailsResponse, userResult] = await Promise.all([
-        fetch(`/api/games/${encodeURIComponent(slug)}`),
+        authenticatedFetch(`/api/games/${encodeURIComponent(slug)}`),
         supabase.auth.getUser(),
       ]);
 

@@ -7,7 +7,6 @@ export default function SignupEmailPage() {
   const { navigateAuth } = useAuthTransition();
 
   const [email, setEmail] = useState("");
-  const [checking, setChecking] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   async function continueWithEmail(event: React.FormEvent<HTMLFormElement>) {
@@ -17,30 +16,7 @@ export default function SignupEmailPage() {
 
     if (!trimmedEmail) return;
 
-    setChecking(true);
     setErrorMessage("");
-
-    const response = await fetch("/api/auth/check-email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email: trimmedEmail }),
-    });
-
-    const result = await response.json();
-
-    setChecking(false);
-
-    if (!response.ok) {
-      setErrorMessage("Something went wrong. Please try again.");
-      return;
-    }
-
-    if (result.exists) {
-      setErrorMessage("An account already exists with this email.");
-      return;
-    }
 
     const encodedEmail = encodeURIComponent(trimmedEmail);
     navigateAuth(`/signup/details?email=${encodedEmail}`);
@@ -86,10 +62,9 @@ export default function SignupEmailPage() {
 
         <button
           type="submit"
-          disabled={checking}
           className="auth-button auth-button-secondary"
         >
-          {checking ? "Checking..." : "Continue with email"}
+          Continue with email
         </button>
       </form>
 

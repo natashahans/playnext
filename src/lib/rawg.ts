@@ -1,3 +1,5 @@
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
+
 export type RawgGenre = {
   id: number;
   name: string;
@@ -87,7 +89,7 @@ type SearchPayload = {
 };
 
 export async function searchRawgGames(query: string): Promise<RawgGame[]> {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `/api/games/discover?search=${encodeURIComponent(query)}`
   );
 

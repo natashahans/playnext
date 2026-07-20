@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { RawgGame } from "@/lib/rawg";
+import { saveCatalogueGame } from "@/lib/catalogue-client";
 
 export default function AddRawgGameButton({
   game,
@@ -33,30 +34,10 @@ export default function AddRawgGameButton({
       return;
     }
 
-    const { data: savedGame, error: gameError } = await supabase
-      .from("games")
-      .upsert(
-        {
-          rawg_id: game.id,
-          title: game.name,
-          slug: game.slug,
-          background_image: game.background_image,
-          released: game.released,
-          rating: game.rating,
-          playtime: game.playtime,
-          genres: game.genres?.map((genre) => genre.name) ?? [],
-          platforms: game.platforms?.map((item) => item.platform.name) ?? [],
-          tags:
-            game.tags
-              ?.filter((tag) => /^[\x00-\x7F\s\-':,&()]+$/.test(tag.name))
-              .map((tag) => tag.name) ?? [],
-        },
-        { onConflict: "rawg_id" }
-      )
-      .select("id")
-      .single();
-
-    if (gameError || !savedGame) {
+    let savedGame: { id: string };
+    try {
+      savedGame = await saveCatalogueGame(game.slug);
+    } catch {
       setErrorMessage("This game could not be added. Please try again.");
       setLoading(false);
       return;

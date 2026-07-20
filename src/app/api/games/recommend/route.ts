@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getRecommendationCandidates } from "@/lib/rawg-server";
 import { normalizeIntent } from "@/lib/intent";
 import type { UserPreferences } from "@/lib/recommendation/types";
+import { protectApi } from "@/lib/api-security";
 
 type RequestBody = {
   intent?: unknown;
@@ -35,11 +36,18 @@ function normalizePreferences(value: unknown): UserPreferences | null {
 }
 
 export async function POST(request: Request) {
+  const security = await protectApi(request, {
+    bucket: "recommendation-candidates",
+    limit: 20,
+    windowMs: 60_000,
+  });
+  if (!security.ok) return security.response;
+
   try {
     const body = (await request.json()) as RequestBody;
 
     if (!body.intent) {
-      return NextResponse.json({ error: "Structured intent is required." }, { status: 400 });
+      return NextResponse.json({ error: "Structured intent is required." }, { status: 400, headers: security.headers });
     }
 
     const excludedRawgIds = (Array.isArray(body.excludedRawgIds) ? body.excludedRawgIds : [])
@@ -55,12 +63,12 @@ export async function POST(request: Request) {
       excludedRawgIds,
     });
 
-    return NextResponse.json({ games });
+    return NextResponse.json({ games }, { headers: security.headers });
   } catch (error) {
     console.error("Discovery recommendation candidate error:", error);
     return NextResponse.json(
       { error: "PlayNext could not load discovery candidates right now." },
-      { status: 500 }
+      { status: 500, headers: security.headers }
     );
   }
 }

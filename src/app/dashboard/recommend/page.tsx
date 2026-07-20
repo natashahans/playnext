@@ -38,6 +38,8 @@ import type {
   IntentChatMessage,
   IntentChatResponse,
 } from "@/types/intent";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
+import { saveCatalogueGame } from "@/lib/catalogue-client";
 
 type Relation<T> = T | T[] | null;
 
@@ -281,7 +283,7 @@ export default function RecommendPage() {
       let candidateGames = collectionGames;
 
       if (mode === "discovery") {
-        const response = await fetch("/api/games/recommend", {
+        const response = await authenticatedFetch("/api/games/recommend", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -336,27 +338,10 @@ export default function RecommendPage() {
       }
 
       if (mode === "discovery") {
-        const { data: savedGame, error: saveGameError } = await supabase
-          .from("games")
-          .upsert({
-            rawg_id: bestGame.rawg_id,
-            title: bestGame.title,
-            slug: bestGame.slug,
-            background_image: bestGame.background_image,
-            released: bestGame.released,
-            rating: bestGame.rating,
-            playtime: bestGame.playtime,
-            genres: bestGame.genres ?? [],
-            platforms: bestGame.platforms ?? [],
-            tags: bestGame.tags ?? [],
-          }, { onConflict: "rawg_id" })
-          .select("id")
-          .single();
-
-        if (saveGameError || !savedGame) {
+        if (!bestGame.slug) {
           throw new Error("The discovery was found but could not be saved.");
         }
-
+        const savedGame = await saveCatalogueGame(bestGame.slug);
         bestGame = { ...bestGame, id: savedGame.id };
       }
 
@@ -431,7 +416,7 @@ export default function RecommendPage() {
     setInterpreting(true);
 
     try {
-      const response = await fetch("/api/extract-intent", {
+      const response = await authenticatedFetch("/api/extract-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: nextMessages }),

@@ -24,7 +24,7 @@ export default function SignupDetailsPage() {
 
     setErrorMessage("");
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email: emailFromUrl,
       password,
       options: {
@@ -42,12 +42,6 @@ export default function SignupDetailsPage() {
         setErrorMessage(error.message);
       }
 
-      setLoading(false);
-      return;
-    }
-
-    if (data.user && data.user.identities?.length === 0) {
-      setErrorMessage("An account already exists with this email.");
       setLoading(false);
       return;
     }

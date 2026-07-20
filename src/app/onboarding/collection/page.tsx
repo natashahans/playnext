@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import OnboardingShell from "@/components/onboarding/OnboardingShell";
 import { searchRawgGames, type RawgGame } from "@/lib/rawg";
 import { supabase } from "@/lib/supabase";
+import { saveCatalogueGame } from "@/lib/catalogue-client";
 
 export default function OnboardingCollectionPage() {
   const router = useRouter();
@@ -64,29 +65,11 @@ export default function OnboardingCollectionPage() {
     }
 
     for (const game of addedGames) {
-      const { data: savedGame, error: gameError } = await supabase
-        .from("games")
-        .upsert(
-          {
-            rawg_id: game.id,
-            title: game.name,
-            slug: game.slug,
-            background_image: game.background_image,
-            released: game.released,
-            rating: game.rating,
-            playtime: game.playtime,
-            genres: game.genres?.map((genre) => genre.name) ?? [],
-            platforms:
-              game.platforms?.map((item) => item.platform.name) ?? [],
-            tags: game.tags?.map((tag) => tag.name) ?? [],
-          },
-          { onConflict: "rawg_id" }
-        )
-        .select("id")
-        .single();
-
-      if (gameError) {
-        alert(gameError.message);
+      let savedGame: { id: string };
+      try {
+        savedGame = await saveCatalogueGame(game.slug);
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "This game could not be saved.");
         setSaving(false);
         return;
       }

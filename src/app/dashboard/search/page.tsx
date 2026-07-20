@@ -18,6 +18,7 @@ import DiscoveryGameCard from "@/components/games/DiscoveryGameCard";
 import GameRail from "@/components/games/GameRail";
 import type { DiscoveryPayload, RawgGame } from "@/lib/rawg";
 import { supabase } from "@/lib/supabase";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 
 type ExistingGameRow = {
   games: { rawg_id: number | null } | { rawg_id: number | null }[] | null;
@@ -48,7 +49,7 @@ export default function SearchPage() {
 
     async function loadPage() {
       const [catalogueResponse, userResult] = await Promise.all([
-        fetch("/api/games/discover"),
+        authenticatedFetch("/api/games/discover"),
         supabase.auth.getUser(),
       ]);
 
@@ -108,7 +109,7 @@ export default function SearchPage() {
     setSubmittedQuery(cleanedQuery);
 
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `/api/games/discover?search=${encodeURIComponent(cleanedQuery)}`
       );
 

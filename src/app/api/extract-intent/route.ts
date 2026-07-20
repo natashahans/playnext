@@ -5,6 +5,7 @@ import {
   normalizeChatResponse,
 } from "@/lib/intent";
 import type { IntentChatMessage } from "@/types/intent";
+import { protectApi } from "@/lib/api-security";
 
 const MAX_MESSAGES = 10;
 const MAX_MESSAGE_LENGTH = 700;
@@ -80,6 +81,13 @@ function validateMessages(value: unknown): IntentChatMessage[] {
 }
 
 export async function POST(request: Request) {
+  const security = await protectApi(request, {
+    bucket: "intent",
+    limit: 12,
+    windowMs: 60_000,
+  });
+  if (!security.ok) return security.response;
+
   let messages: IntentChatMessage[] = [];
 
   try {
@@ -92,11 +100,11 @@ export async function POST(request: Request) {
     }
 
     if (messages.filter((message) => message.role === "user").length === 0) {
-      return NextResponse.json({ error: "A user message is required." }, { status: 400 });
+      return NextResponse.json({ error: "A user message is required." }, { status: 400, headers: security.headers });
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ ...fallbackIntent(messages), source: "fallback" });
+      return NextResponse.json({ ...fallbackIntent(messages), source: "fallback" }, { headers: security.headers });
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -122,14 +130,14 @@ export async function POST(request: Request) {
     const parsed = JSON.parse(text) as unknown;
     const response = normalizeChatResponse(parsed, messages);
 
-    return NextResponse.json({ ...response, source: "gemini" });
+    return NextResponse.json({ ...response, source: "gemini" }, { headers: security.headers });
   } catch (error) {
     console.error("Intent extraction failed; using deterministic fallback:", error);
 
     if (messages.length > 0) {
-      return NextResponse.json({ ...fallbackIntent(messages), source: "fallback" });
+      return NextResponse.json({ ...fallbackIntent(messages), source: "fallback" }, { headers: security.headers });
     }
 
-    return NextResponse.json({ error: "Intent extraction failed." }, { status: 500 });
+    return NextResponse.json({ error: "Intent extraction failed." }, { status: 500, headers: security.headers });
   }
 }
