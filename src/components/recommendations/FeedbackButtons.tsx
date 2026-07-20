@@ -92,6 +92,20 @@ export default function FeedbackButtons({ recommendationId }: { recommendationId
     });
 
     if (error) {
+      if (error.code === "23505") {
+        const { data: existing } = await supabase
+          .from("feedback")
+          .select("feedback_type, reason")
+          .eq("recommendation_id", recommendationId)
+          .maybeSingle();
+        if (existing) {
+          setSelected(existing.feedback_type);
+          setReason(existing.reason ?? "");
+          setSaved(true);
+          setSaving(false);
+          return;
+        }
+      }
       setErrorMessage("Your feedback could not be saved. Please try again.");
       setSaving(false);
       return;

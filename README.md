@@ -57,7 +57,9 @@ RAWG_API_KEY=
 GEMINI_API_KEY=
 ```
 
-Apply the SQL files in `supabase/migrations` to the intended Supabase project in chronological order. Run `supabase/tests/rls_verification.sql` in the SQL editor after applying migrations. Every invalid-row count should be zero, every listed constraint should be validated, RLS should be enabled for all personal tables, and table privileges should match the documented least-privilege set.
+For a **new empty Supabase project only**, run `supabase/bootstrap/000_initial_schema.sql`, then apply the SQL files in `supabase/migrations` chronologically. Do not run the bootstrap file against the existing production project; its tables already exist. Existing projects should apply only outstanding timestamped migrations.
+
+Run `supabase/tests/rls_verification.sql` in the SQL editor after migrations. Every invalid-row count should be zero, every listed constraint should be validated, RLS should be enabled for all personal tables, and table privileges should match the documented least-privilege set.
 
 ## Verification
 
@@ -75,6 +77,7 @@ The reproducible manual test procedure and requirements traceability are in:
 - `docs/MANUAL_QA_CHECKLIST.md`
 - `docs/RECOMMENDATION_ENGINE.md`
 - `docs/USABILITY_EVALUATION_PROTOCOL.md`
+- `docs/REAL_WORLD_EVIDENCE_PLAN.md`
 
 ## Security and privacy
 

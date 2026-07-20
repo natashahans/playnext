@@ -10,7 +10,7 @@ PlayNext uses layered verification so that a single successful page load is not 
 
 ## 2. Automated result
 
-The complete local gate passed **91 automated tests with 1 optional live test skipped**, followed by a clean ESLint run and a clean TypeScript check. The skipped test is deliberately environment-gated: it requires two dedicated Supabase test accounts and runs when those credentials are supplied locally.
+The complete local gate passed **97 automated tests with 1 optional live test skipped**, followed by a clean ESLint run, a clean TypeScript check and a successful 30-route production build. The skipped test is deliberately environment-gated: it requires two dedicated Supabase test accounts and runs when those credentials are supplied locally.
 
 | Area | Evidence | Result |
 | --- | --- | --- |
@@ -69,6 +69,6 @@ Live privilege inspection additionally showed that earlier database setup script
 - Authenticated end-to-end flows and account recovery still require manual execution with dedicated test accounts. Cross-user read isolation now has a reproducible automated test, but it must be run against the live project by providing two dedicated account credentials.
 - The current rate limiter is appropriate for a single local process but a distributed production deployment would require a shared store.
 - The throughput guardrail measures the ranking function, not full network latency or browser rendering.
-- Formal usability evaluation with participants must not begin without confirming and, where required, obtaining university ethics approval.
+- The Interim Progress Report records ethics approval under review reference `2571-ST-HSET-2026`, expiring 5 August 2026. Participant work must follow the signed approval documents and stop or be extended before expiry as directed by the supervisor/ethics contact.
 
-Complete `docs/MANUAL_QA_CHECKLIST.md`, follow `docs/USABILITY_EVALUATION_PROTOCOL.md` only after satisfying its ethics gate, and retain anonymised evidence. Do not include passwords, API keys, access tokens or identifiable participant data.
+Complete `docs/MANUAL_QA_CHECKLIST.md`, follow `docs/REAL_WORLD_EVIDENCE_PLAN.md`, and use `docs/USABILITY_EVALUATION_PROTOCOL.md` only after satisfying its ethics gate. Retain anonymised evidence. Do not include passwords, API keys, access tokens or identifiable participant data.

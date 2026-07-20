@@ -382,6 +382,45 @@
 .settings-v2-savebar > div > span.is-saved { color: var(--color-success); }
 .settings-v2-savebar small { display: block; margin-top: 3px; color: var(--color-subtle); font-size: 10px; }
 
+/* Readability pass: supporting information must remain comfortably legible on
+   laptop and mobile displays instead of relying on 10–11px interface text. */
+.history-source,
+.history-v2-score span,
+.history-v2-genres span,
+.history-v2-context > span,
+.history-feedback,
+.history-v2-footer a,
+.history-v2-details article > span { font-size: 12px; }
+.history-v2-content blockquote,
+.history-v2-explanation { font-size: 14px; }
+.history-v2-details summary { font-size: 13px; }
+.history-v2-details article p { font-size: 12px; }
+
+.settings-profile-card > span,
+.settings-v2-heading small { font-size: 11px; }
+.settings-profile-card > p,
+.settings-name-field > span,
+.settings-strength > div,
+.settings-profile-summary span,
+.settings-v2-heading > strong,
+.settings-platform-grid small,
+.settings-choice-grid span,
+.settings-reset-card p,
+.settings-v2-savebar small { font-size: 12px; }
+.settings-strength p,
+.settings-principle-card p { font-size: 12px; }
+.settings-principle-card strong,
+.settings-v2-heading p,
+.settings-v2-chip-grid button,
+.settings-choice-group > div:first-child > button,
+.settings-v2-savebar > div > span { font-size: 13px; }
+.settings-platform-grid strong,
+.settings-choice-group > div:first-child > strong,
+.settings-choice-grid strong,
+.settings-reset-card strong { font-size: 14px; }
+.settings-v2-chip-grid button { min-height: 42px; padding-inline: 14px; }
+.settings-platform-grid button { min-height: 78px; }
+
 @media (max-width: 1180px) {
   .lib-stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .collection-v2-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

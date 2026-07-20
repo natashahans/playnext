@@ -4,6 +4,11 @@ import { readFile } from "node:fs/promises";
 
 const migrationUrl = new URL("../supabase/migrations/20260720_security_hardening.sql", import.meta.url);
 const migration = await readFile(migrationUrl, "utf8");
+const integrityMigration = await readFile(
+  new URL("../supabase/migrations/20260721_recommendation_integrity.sql", import.meta.url),
+  "utf8"
+);
+const databaseMigrations = `${migration}\n${integrityMigration}`;
 
 const userTables = [
   "profiles", "user_games", "user_preferences", "recommendation_sessions", "recommendations", "feedback",
@@ -46,6 +51,12 @@ test("recommendation ownership is tied to the user's own session", () => {
 test("database constraints cover bounded domain values", () => {
   for (const constraint of [
     "user_games_status_allowed", "feedback_type_allowed", "recommendation_score_range",
-    "session_available_time_range", "feedback_reason_length",
-  ]) assert.match(migration, new RegExp(constraint));
+    "session_available_time_range", "feedback_reason_length", "session_recommendation_mode_allowed",
+  ]) assert.match(databaseMigrations, new RegExp(constraint));
+});
+
+test("duplicate feedback is prevented when existing data is clean", () => {
+  assert.match(integrityMigration, /feedback_one_response_per_recommendation/i);
+  assert.match(integrityMigration, /group by recommendation_id\s+having count\(\*\) > 1/i);
+  assert.match(integrityMigration, /unique \(recommendation_id\)/i);
 });

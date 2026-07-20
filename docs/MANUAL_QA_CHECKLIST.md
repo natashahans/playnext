@@ -31,6 +31,7 @@ Use a development/test Supabase project. Record **Pass**, **Fail** or **Blocked*
 | C03 | Change game status | Status persists after refresh | Not run |
 | C04 | Remove a game and confirm | Item disappears and stays removed after refresh | Not run |
 | C05 | Cancel removal | No data changes | Not run |
+| C06 | Load more than 48 collection games | Lifetime status totals remain exact; recent-page rating is clearly labelled | Not run |
 
 ## Decision assistant and learning
 
@@ -60,6 +61,7 @@ Use a development/test Supabase project. Record **Pass**, **Fail** or **Blocked*
 | H01 | Open History after recommendations | Correct chronological records and modes appear | Not run |
 | H02 | Open a history item | Recommendation explanation/context is understandable | Not run |
 | H03 | Use history filters/empty state | Correct state is shown without layout shift | Not run |
+| H04 | Load more than 30 decisions | Lifetime totals remain exact and the recent average is clearly labelled | Not run |
 | S01 | Change genres, platforms and play style | Saved values persist after refresh | Not run |
 | S02 | Change display name and save | Setting persists and dashboard greeting updates after navigation/refresh | Implemented; manual live check not run |
 | S03 | Trigger validation failure | Error is specific, readable and preserves valid edits | Not run |

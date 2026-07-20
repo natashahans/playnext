@@ -49,6 +49,13 @@ type HistoryItem = {
   score_breakdown: { category?: string; label: string; points: number; detail?: string }[] | null;
 };
 
+type HistoryTotals = {
+  total: number;
+  discovery: number;
+  feedback: number;
+  liked: number;
+};
+
 const feedbackLabels: Record<string, string> = {
   liked: "Great match",
   not_in_mood: "Not my mood",
@@ -69,6 +76,12 @@ function latestPrompt(input: string | undefined) {
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyTotals, setHistoryTotals] = useState<HistoryTotals>({
+    total: 0,
+    discovery: 0,
+    feedback: 0,
+    liked: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [loadMoreError, setLoadMoreError] = useState("");
@@ -90,35 +103,48 @@ export default function HistoryPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("recommendations")
-        .select(`
-          id,
-          created_at,
-          score,
-          explanation,
-          score_breakdown,
-          games ( title, slug, background_image, genres ),
-          recommendation_sessions (
-            user_input,
-            recommendation_mode,
-            mood,
-            available_time,
-            energy_level,
-            desired_experience
-          ),
-          feedback ( feedback_type, reason )
-        `)
-        .eq("user_id", userData.user.id)
-        .order("created_at", { ascending: false })
-        .range(0, HISTORY_PAGE_SIZE - 1);
+      const [rowsResult, totalResult, discoveryResult, feedbackResult, likedResult] = await Promise.all([
+        supabase
+          .from("recommendations")
+          .select(`
+            id,
+            created_at,
+            score,
+            explanation,
+            score_breakdown,
+            games ( title, slug, background_image, genres ),
+            recommendation_sessions (
+              user_input,
+              recommendation_mode,
+              mood,
+              available_time,
+              energy_level,
+              desired_experience
+            ),
+            feedback ( feedback_type, reason )
+          `)
+          .eq("user_id", userData.user.id)
+          .order("created_at", { ascending: false })
+          .range(0, HISTORY_PAGE_SIZE - 1),
+        supabase.from("recommendations").select("id", { count: "exact", head: true }).eq("user_id", userData.user.id),
+        supabase.from("recommendation_sessions").select("id", { count: "exact", head: true }).eq("user_id", userData.user.id).eq("recommendation_mode", "discovery"),
+        supabase.from("feedback").select("id", { count: "exact", head: true }).eq("user_id", userData.user.id),
+        supabase.from("feedback").select("id", { count: "exact", head: true }).eq("user_id", userData.user.id).eq("feedback_type", "liked"),
+      ]);
 
       if (!active) return;
 
-      if (error) setErrorMessage("We couldn’t load your recommendation history.");
+      const countError = totalResult.error || discoveryResult.error || feedbackResult.error || likedResult.error;
+      if (rowsResult.error || countError) setErrorMessage("We couldn’t load your recommendation history.");
       else {
-        const rows = (data ?? []) as unknown as HistoryItem[];
+        const rows = (rowsResult.data ?? []) as unknown as HistoryItem[];
         setHistory(rows);
+        setHistoryTotals({
+          total: totalResult.count ?? rows.length,
+          discovery: discoveryResult.count ?? 0,
+          feedback: feedbackResult.count ?? 0,
+          liked: likedResult.count ?? 0,
+        });
         setHasMore(rows.length === HISTORY_PAGE_SIZE);
       }
       setLoading(false);
@@ -129,15 +155,12 @@ export default function HistoryPage() {
   }, []);
 
   const summary = useMemo(() => {
-    const feedbackCount = history.filter((item) => (item.feedback?.length ?? 0) > 0).length;
-    const discoveryCount = history.filter((item) => one(item.recommendation_sessions)?.recommendation_mode === "discovery").length;
-    const likedCount = history.filter((item) => item.feedback?.[0]?.feedback_type === "liked").length;
     const averageScore = history.length
       ? Math.round(history.reduce((total, item) => total + item.score, 0) / history.length)
       : 0;
 
-    return { feedbackCount, discoveryCount, likedCount, averageScore };
-  }, [history]);
+    return { ...historyTotals, averageScore };
+  }, [history, historyTotals]);
 
   const filteredHistory = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -229,10 +252,10 @@ export default function HistoryPage() {
       ) : (
         <>
           <section className="history-v2-summary" aria-label="History overview">
-            <article><span><History size={17} /></span><div><small>Total decisions</small><strong>{history.length}</strong><p>Recommendations recorded</p></div></article>
-            <article><span><BarChart3 size={17} /></span><div><small>Average fit</small><strong>{summary.averageScore}%</strong><p>Across all decisions</p></div></article>
-            <article><span><Compass size={17} /></span><div><small>New discoveries</small><strong>{summary.discoveryCount}</strong><p>Outside your collection</p></div></article>
-            <article><span><MessageSquareText size={17} /></span><div><small>Feedback given</small><strong>{summary.feedbackCount}</strong><p>{summary.likedCount} marked great match</p></div></article>
+            <article><span><History size={17} /></span><div><small>Total decisions</small><strong>{summary.total}</strong><p>Recommendations recorded</p></div></article>
+            <article><span><BarChart3 size={17} /></span><div><small>Recent average fit</small><strong>{summary.averageScore}%</strong><p>Across currently loaded decisions</p></div></article>
+            <article><span><Compass size={17} /></span><div><small>New discoveries</small><strong>{summary.discovery}</strong><p>Outside your collection</p></div></article>
+            <article><span><MessageSquareText size={17} /></span><div><small>Feedback given</small><strong>{summary.feedback}</strong><p>{summary.liked} marked great match</p></div></article>
           </section>
 
           <section className="history-v2-controls">

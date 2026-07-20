@@ -111,7 +111,7 @@ order by grantee, table_name;
 
 -- ---------------------------------------------------------------------------
 -- 5. EXISTING-DATA CONSTRAINT AUDIT
--- Expected: all five invalid_rows values are 0.
+-- Expected: all invalid_rows values are 0.
 -- ---------------------------------------------------------------------------
 
 select 'user_games_status_allowed' as check_name, count(*) as invalid_rows
@@ -152,11 +152,29 @@ union all
 select 'feedback_reason_length', count(*)
 from public.feedback
 where reason is not null
-  and char_length(reason) > 240;
+  and char_length(reason) > 240
+
+union all
+
+select 'session_recommendation_mode_allowed', count(*)
+from public.recommendation_sessions
+where recommendation_mode is null
+  or recommendation_mode not in ('collection', 'discovery');
+
+-- Must return zero. If it does not, review duplicate rows before adding the
+-- one-response-per-recommendation constraint; do not delete research data blindly.
+select 'duplicate_feedback_per_recommendation' as check_name, count(*) as invalid_rows
+from (
+  select recommendation_id
+  from public.feedback
+  group by recommendation_id
+  having count(*) > 1
+) duplicates;
 
 -- ---------------------------------------------------------------------------
 -- 6. CONSTRAINT VALIDATION STATUS
--- Expected: five rows and every validated value is true.
+-- Expected: six check constraints with validated=true. The unique feedback
+-- constraint should also be present when the duplicate audit returned zero.
 -- ---------------------------------------------------------------------------
 
 select
@@ -170,6 +188,8 @@ where connamespace = 'public'::regnamespace
     'feedback_type_allowed',
     'recommendation_score_range',
     'session_available_time_range',
-    'feedback_reason_length'
+    'feedback_reason_length',
+    'session_recommendation_mode_allowed',
+    'feedback_one_response_per_recommendation'
   )
 order by table_name, constraint_name;

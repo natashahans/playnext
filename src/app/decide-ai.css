@@ -707,6 +707,22 @@
 .ai-discovery-add button:disabled { cursor: default; opacity: 0.68; }
 .ai-discovery-add > span { color: var(--color-danger); font-size: 12px; }
 
+/* Keep explanatory interface copy readable without making the compact chat
+   controls visually heavy. */
+.ai-decide-header > div:first-child > span,
+.ai-recommendation-heading > div:first-child > span,
+.ai-feedback-heading > div > span,
+.ai-chat-identity small,
+.ai-message small,
+.ai-context-heading small,
+.ai-context-grid span,
+.ai-context-source-card span,
+.ai-match-score span,
+.ai-score-details article > div span { font-size: 12px; }
+.ai-chat-identity p,
+.ai-chat-composer > div > span,
+.ai-feedback-detail > div > span { font-size: 12px; }
+
 @media (max-width: 1120px) {
   .ai-source-control > span { display: none; }
   .ai-decide-layout { grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr); }

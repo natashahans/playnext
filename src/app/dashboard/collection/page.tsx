@@ -40,8 +40,16 @@ type CollectionRow = {
   games: GameDetails | GameDetails[] | null;
 };
 
+type CollectionTotals = {
+  total: number;
+  backlog: number;
+  playing: number;
+  completed: number;
+};
+
 type SortOption = "recent" | "title" | "rating";
 type StatusFilter = "all" | "backlog" | "playing" | "completed";
+type CollectionStatus = Exclude<StatusFilter, "all">;
 const COLLECTION_PAGE_SIZE = 48;
 
 const statusOptions = [
@@ -58,8 +66,18 @@ function statusLabel(status: string) {
   return statusOptions.find((option) => option.value === status)?.label ?? "Backlog";
 }
 
+function isTrackedStatus(status: string): status is CollectionStatus {
+  return status === "backlog" || status === "playing" || status === "completed";
+}
+
 export default function CollectionPage() {
   const [collection, setCollection] = useState<CollectionRow[]>([]);
+  const [collectionTotals, setCollectionTotals] = useState<CollectionTotals>({
+    total: 0,
+    backlog: 0,
+    playing: 0,
+    completed: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [statusError, setStatusError] = useState("");
@@ -83,7 +101,7 @@ export default function CollectionPage() {
         return;
       }
 
-      const { data, error } = await supabase
+      const rowsQuery = supabase
         .from("user_games")
         .select(`
           id,
@@ -105,13 +123,37 @@ export default function CollectionPage() {
         .order("added_at", { ascending: false })
         .range(0, COLLECTION_PAGE_SIZE - 1);
 
+      const countByStatus = (status?: string) => {
+        let query = supabase
+          .from("user_games")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userData.user.id);
+        if (status) query = query.eq("status", status);
+        return query;
+      };
+
+      const [rowsResult, totalResult, backlogResult, playingResult, completedResult] = await Promise.all([
+        rowsQuery,
+        countByStatus(),
+        countByStatus("backlog"),
+        countByStatus("playing"),
+        countByStatus("completed"),
+      ]);
+
       if (!active) return;
 
-      if (error) {
+      const countError = totalResult.error || backlogResult.error || playingResult.error || completedResult.error;
+      if (rowsResult.error || countError) {
         setErrorMessage("We couldn’t load your collection. Please refresh and try again.");
       } else {
-        const rows = (data ?? []) as unknown as CollectionRow[];
+        const rows = (rowsResult.data ?? []) as unknown as CollectionRow[];
         setCollection(rows);
+        setCollectionTotals({
+          total: totalResult.count ?? rows.length,
+          backlog: backlogResult.count ?? 0,
+          playing: playingResult.count ?? 0,
+          completed: completedResult.count ?? 0,
+        });
         setHasMore(rows.length === COLLECTION_PAGE_SIZE);
       }
       setLoading(false);
@@ -133,15 +175,12 @@ export default function CollectionPage() {
       .filter((rating): rating is number => rating != null && rating > 0);
 
     return {
-      total: collection.length,
-      backlog: collection.filter((row) => row.status === "backlog").length,
-      playing: collection.filter((row) => row.status === "playing").length,
-      completed: collection.filter((row) => row.status === "completed").length,
+      ...collectionTotals,
       averageRating: ratings.length
         ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
         : 0,
     };
-  }, [collection]);
+  }, [collection, collectionTotals]);
 
   const filteredCollection = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -169,13 +208,20 @@ export default function CollectionPage() {
       });
   }, [collection, searchQuery, statusFilter, genreFilter, sortBy]);
 
-  async function updateStatus(userGameId: string, nextStatus: string) {
+  async function updateStatus(userGameId: string, nextStatus: CollectionStatus) {
     const previousStatus = collection.find((row) => row.id === userGameId)?.status ?? "backlog";
     setStatusError("");
     setUpdatingStatusId(userGameId);
     setCollection((current) => current.map((row) =>
       row.id === userGameId ? { ...row, status: nextStatus } : row
     ));
+    if (previousStatus !== nextStatus) {
+      setCollectionTotals((current) => {
+        const next = { ...current, [nextStatus]: current[nextStatus] + 1 };
+        if (isTrackedStatus(previousStatus)) next[previousStatus] = Math.max(0, current[previousStatus] - 1);
+        return next;
+      });
+    }
 
     const { error } = await supabase
       .from("user_games")
@@ -186,6 +232,13 @@ export default function CollectionPage() {
       setCollection((current) => current.map((row) =>
         row.id === userGameId ? { ...row, status: previousStatus } : row
       ));
+      if (previousStatus !== nextStatus) {
+        setCollectionTotals((current) => {
+          const next = { ...current, [nextStatus]: Math.max(0, current[nextStatus] - 1) };
+          if (isTrackedStatus(previousStatus)) next[previousStatus] = current[previousStatus] + 1;
+          return next;
+        });
+      }
       setStatusError("That status could not be updated. Please try again.");
     }
     setUpdatingStatusId(null);
@@ -273,7 +326,7 @@ export default function CollectionPage() {
             <article><span className="lib-stat-icon"><Clock3 size={17} /></span><div><small>Backlog</small><strong>{stats.backlog}</strong><p>Waiting to be played</p></div></article>
             <article><span className="lib-stat-icon"><PlayCircle size={17} /></span><div><small>Playing now</small><strong>{stats.playing}</strong><p>Easy to resume</p></div></article>
             <article><span className="lib-stat-icon"><CheckCircle2 size={17} /></span><div><small>Completed</small><strong>{stats.completed}</strong><p>Excluded from most picks</p></div></article>
-            <article><span className="lib-stat-icon"><Star size={17} /></span><div><small>Average rating</small><strong>{stats.averageRating ? stats.averageRating.toFixed(1) : "—"}</strong><p>Across rated games</p></div></article>
+            <article><span className="lib-stat-icon"><Star size={17} /></span><div><small>Recent-page rating</small><strong>{stats.averageRating ? stats.averageRating.toFixed(1) : "—"}</strong><p>Across currently loaded games</p></div></article>
           </section>
 
           <section className="lib-control-panel">
@@ -303,7 +356,7 @@ export default function CollectionPage() {
 
             <div className="lib-status-tabs" role="tablist" aria-label="Filter by collection status">
               {(["all", "backlog", "playing", "completed"] as StatusFilter[]).map((status) => {
-                const count = status === "all" ? stats.total : collection.filter((row) => row.status === status).length;
+                const count = status === "all" ? stats.total : stats[status];
                 return (
                   <button key={status} type="button" role="tab" aria-selected={statusFilter === status} className={statusFilter === status ? "is-active" : ""} onClick={() => setStatusFilter(status)}>
                     {status === "all" ? "All games" : statusLabel(status)} <span>{count}</span>
@@ -355,14 +408,25 @@ export default function CollectionPage() {
 
                       <label className="collection-status-control">
                         <span>Collection status</span>
-                        <select value={statusOptions.some((option) => option.value === row.status) ? row.status : "backlog"} disabled={updatingStatusId === row.id} onChange={(event) => updateStatus(row.id, event.target.value)}>
+                        <select value={statusOptions.some((option) => option.value === row.status) ? row.status : "backlog"} disabled={updatingStatusId === row.id} onChange={(event) => updateStatus(row.id, event.target.value as CollectionStatus)}>
                           {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                         </select>
                       </label>
 
                       <div className="collection-v2-actions">
                         {game.slug ? <Link href={`/dashboard/search/${game.slug}`}>View details</Link> : <span />}
-                        <RemoveGameButton userGameId={row.id} gameTitle={game.title} onRemoved={() => setCollection((current) => current.filter((item) => item.id !== row.id))} />
+                        <RemoveGameButton
+                          userGameId={row.id}
+                          gameTitle={game.title}
+                          onRemoved={() => {
+                            setCollection((current) => current.filter((item) => item.id !== row.id));
+                            setCollectionTotals((current) => {
+                              const next = { ...current, total: Math.max(0, current.total - 1) };
+                              if (isTrackedStatus(row.status)) next[row.status] = Math.max(0, current[row.status] - 1);
+                              return next;
+                            });
+                          }}
+                        />
                       </div>
                     </div>
                   </article>

@@ -1,10 +1,12 @@
 # PlayNext Usability and Recommendation Evaluation Protocol
 
-## Ethics gate
+## Ethics gate and current status
 
-Do not recruit participants, record observations or collect questionnaires until the university has confirmed whether ethics approval is required and any required approval has been granted. Self-testing and automated tests are not substitutes for independent user evidence, but they can continue before participant work.
+The Interim Progress Report records the study as **Ethics Approved** under project ID **2571** and review reference **2571-ST-HSET-2026**, with an approval expiry date of **5 August 2026**. That report entry is supporting evidence, but the signed approval letter and its approved attachments remain authoritative.
 
-If approval is not available, report the automated and heuristic evidence honestly and describe participant evaluation as future work. Never fabricate participants, scores or quotations.
+Before recruitment, compare this protocol with the final approved application, participant information sheet, consent form, recruitment text, task sheet and questionnaire. Use the approved versions without silently adding participants, recording methods, questions or data fields. Ask the supervisor or ethics contact whether all data collection must finish before the expiry date and request an extension or amendment if required.
+
+Do not recruit, observe or collect questionnaire data when the approval has expired, when the signed conditions cannot be confirmed, or when the intended procedure differs materially from the approved study. Automated and self-testing may continue, but they are not substitutes for independent user evidence. Never fabricate participants, scores or quotations.
 
 ## Evaluation questions
 
@@ -68,4 +70,4 @@ Do not tune the engine on the holdout set and then report the same set as indepe
 
 Report both successful and unsuccessful cases. Separate observed facts from interpretation. Explain sample limitations, device limitations and researcher bias. Link every conclusion to recorded evidence and identify engine changes that followed from evaluation.
 
-Use `docs/evaluation/participant-results-template.csv` only after the ethics gate has been satisfied.
+Use `docs/evaluation/participant-results-template.csv` only after the ethics gate above has been checked against the actual approval documents. Store consent records separately from anonymous results and never commit identifiable participant data to Git.
