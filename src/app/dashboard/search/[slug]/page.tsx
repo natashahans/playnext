@@ -127,7 +127,6 @@ export default function GameDetailsPage() {
             sizes="(max-width: 900px) 100vw, 80vw"
             className="object-cover"
             priority
-            unoptimized
           />
         )}
         <div className="game-detail-hero-scrim" />
@@ -211,7 +210,6 @@ export default function GameDetailsPage() {
                       fill
                       sizes="(max-width: 700px) 100vw, 50vw"
                       className="object-cover"
-                      unoptimized
                     />
                   </div>
                 ))}

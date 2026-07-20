@@ -9,8 +9,6 @@ export default function AuthFinishPage() {
 
   useEffect(() => {
     async function finishAuth() {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {

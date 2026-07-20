@@ -31,6 +31,12 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   reactCompiler: true,
   poweredByHeader: false,
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "media.rawg.io" },
+    ],
+    formats: ["image/avif", "image/webp"],
+  },
   async headers() {
     const securityHeaders = [
       { key: "Content-Security-Policy", value: contentSecurityPolicy },

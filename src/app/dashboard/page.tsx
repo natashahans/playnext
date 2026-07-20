@@ -285,7 +285,6 @@ export default function DashboardPage() {
             sizes="(max-width: 900px) 100vw, 80vw"
             className="object-cover"
             priority
-            unoptimized
           />
         )}
         <div className="home-command-hero-scrim" />
@@ -380,7 +379,7 @@ export default function DashboardPage() {
                   <>
                     <div className="home-recent-artwork">
                       {game.background_image ? (
-                        <Image src={game.background_image} alt="" fill sizes="92px" className="object-cover" unoptimized />
+                        <Image src={game.background_image} alt="" fill sizes="92px" className="object-cover" />
                       ) : (
                         <Gamepad2 size={19} aria-hidden="true" />
                       )}
@@ -423,7 +422,7 @@ export default function DashboardPage() {
               <div className="home-last-decision-card">
                 <div className="home-last-decision-artwork">
                   {latestGame.background_image ? (
-                    <Image src={latestGame.background_image} alt="" fill sizes="320px" className="object-cover" unoptimized />
+                    <Image src={latestGame.background_image} alt="" fill sizes="320px" className="object-cover" />
                   ) : (
                     <Gamepad2 size={24} aria-hidden="true" />
                   )}

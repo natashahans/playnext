@@ -21,8 +21,15 @@ test("anonymous table access is revoked", () => {
   }
 });
 
+test("authenticated table privileges are reset before least-privilege grants", () => {
+  for (const table of [...userTables, "games"]) {
+    assert.match(migration, new RegExp(`revoke all on table public\\.${table} from authenticated`, "i"));
+  }
+});
+
 test("shared game metadata cannot be changed by browser users", () => {
-  assert.match(migration, /revoke insert, update, delete on table public\.games from authenticated/i);
+  assert.match(migration, /revoke all on table public\.games from authenticated/i);
+  assert.match(migration, /grant select on table public\.games to authenticated/i);
   assert.doesNotMatch(migration, /create policy[^;]+on public\.games for update[^;]+;/i);
 });
 

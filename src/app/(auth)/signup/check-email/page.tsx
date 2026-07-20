@@ -52,7 +52,7 @@ export default function CheckEmailPage() {
       type: "signup",
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/finish`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/finish")}`,
       },
     });
 

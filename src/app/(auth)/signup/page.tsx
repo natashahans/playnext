@@ -8,18 +8,21 @@ export default function SignupPage() {
   const { navigateAuth } = useAuthTransition();
 
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function continueWithGoogle() {
     setGoogleLoading(true);
+    setErrorMessage("");
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/finish")}`,
       },
     });
 
     if (error) {
+      setErrorMessage("Google sign-up could not be started. Please try again or continue with email.");
       setGoogleLoading(false);
       return;
     }
@@ -47,6 +50,8 @@ export default function SignupPage() {
           Continue with email
         </button>
       </div>
+
+      {errorMessage && <p className="auth-error auth-login-error" role="alert">{errorMessage}</p>}
 
       <p className="auth-footer">
         Already have an account?{" "}

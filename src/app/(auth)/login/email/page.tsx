@@ -61,8 +61,8 @@ export default function LoginEmailPage() {
             minLength={6}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Create password"
-            autoComplete="new-password"
+            placeholder="Password"
+            autoComplete="current-password"
             className="auth-input"
           />
 

@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PlayNext
 
-## Getting Started
+PlayNext is a context-aware game decision-support application. It helps a user choose one game that fits the session they have right now instead of presenting another endless catalogue. A user can ask for a recommendation from games they own or discover something outside their collection.
 
-First, run the development server:
+The AI has one bounded responsibility: converting conversation into structured intent such as mood, available time, energy, desired experience and exclusions. A deterministic recommendation engine then ranks eligible games using that live context together with saved preferences, decaying feedback, recommendation history and game-quality signals. The separation makes decisions repeatable, testable and explainable.
+
+## Main features
+
+- Supabase email/password and Google OAuth authentication, including account recovery
+- guided onboarding for genres, platforms and an initial game collection
+- visual RAWG catalogue with search, categories and game-detail pages
+- collection management with filtering, sorting and pagination
+- conversational intent extraction with persistent in-progress decisions
+- collection and discovery recommendation modes
+- explainable scoring, recommendation history and feedback learning
+- editable personal preferences, display name and account settings
+- responsive desktop, tablet and mobile layouts
+
+## Technology
+
+- **Next.js 16 App Router and React 19** for the full-stack web application
+- **TypeScript** for typed application and domain logic
+- **Supabase** for authentication, PostgreSQL data and Row Level Security
+- **Gemini** for constrained intent extraction, with deterministic local fallback
+- **RAWG API** for game catalogue metadata and artwork
+- **Tailwind CSS and product CSS layers** for the responsive interface
+- **Node test runner, ESLint and TypeScript** for the verification gate
+
+## Recommendation flow
+
+1. The signed-in user selects their collection or discovery as the candidate source.
+2. Their conversation is interpreted into a bounded `ExtractedIntent` object.
+3. The server retrieves the relevant candidates and the user's saved signals.
+4. The deterministic engine applies hard eligibility rules, scores multiple weighted factors, deduplicates candidates and ranks the result.
+5. PlayNext stores the recommendation and shows the leading reasons and score breakdown.
+6. Feedback becomes a time-decaying signal for later decisions; it does not permanently exclude a game unless the current request requires that exclusion.
+
+## Local setup
+
+Requirements: Node.js 20 or later, npm and a Supabase project.
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`. Configure these variables in `.env.local`; never commit their real values:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+RAWG_API_KEY=
+GEMINI_API_KEY=
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Apply the SQL files in `supabase/migrations` to the intended Supabase project in chronological order. Run `supabase/tests/rls_verification.sql` in the SQL editor after applying migrations. Every invalid-row count should be zero, every listed constraint should be validated, RLS should be enabled for all personal tables, and table privileges should match the documented least-privilege set.
 
-## Learn More
+## Verification
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run verify
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This runs the complete automated test suite, ESLint and a no-output TypeScript compile. Recommendation-only and security-focused subsets are also available through `npm run test:engine` and `npm run test:security`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`tests/liveRls.test.mts` is skipped unless two dedicated test accounts are supplied through the `PLAYNEXT_TEST_USER_A_*` and `PLAYNEXT_TEST_USER_B_*` environment variables. Those accounts allow a read-only, cross-user isolation check against the real Supabase project without embedding credentials in source control.
 
-## Deploy on Vercel
+The reproducible manual test procedure and requirements traceability are in:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `docs/TESTING_AND_EVALUATION.md`
+- `docs/MANUAL_QA_CHECKLIST.md`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Security and privacy
+
+- protected API routes validate the caller's Supabase access token
+- RAWG and Gemini secrets remain server-only
+- Row Level Security isolates user-owned data
+- database grants are revoked and rebuilt to the minimum required operations
+- bounded constraints reject invalid statuses, feedback values, score ranges and unreasonable session values
+- redirect destinations are restricted to safe internal application paths
+- the interface uses a native system font stack, avoiding a build-time or first-load dependency on a third-party font host
+
+Do not store screenshots containing passwords, tokens, API keys or personally identifying participant data. Any formal evaluation involving human participants must follow the university ethics process before recruitment or data collection.
+
+## Current evaluation boundaries
+
+The automated benchmark demonstrates agreement with a transparent developer-authored scenario set; it is not a universal accuracy claim. Full external validation still requires authenticated device testing, cross-user testing with dedicated accounts and ethically approved usability evaluation. These limitations are recorded explicitly so the artefact is not presented more strongly than the available evidence supports.
+
+Game metadata and artwork are provided by RAWG.

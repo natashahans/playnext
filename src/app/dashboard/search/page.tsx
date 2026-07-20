@@ -238,7 +238,6 @@ export default function SearchPage() {
                   sizes="(max-width: 900px) 100vw, 80vw"
                   className="object-cover"
                   priority
-                  unoptimized
                 />
               )}
               <div className="discover-hero-scrim" />

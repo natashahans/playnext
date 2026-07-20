@@ -110,7 +110,6 @@ export default function OnboardingAddGamesPage() {
                     alt={game.name}
                     fill
                     className="object-cover"
-                    unoptimized
                   />
                 </div>
               ) : (

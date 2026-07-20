@@ -10,20 +10,23 @@ PlayNext uses layered verification so that a single successful page load is not 
 
 ## 2. Automated result
 
-The complete gate passed **54 of 54 automated tests**, followed by a clean ESLint run and a clean TypeScript check.
+The complete local gate passed **71 automated tests with 1 optional live test skipped**, followed by a clean ESLint run and a clean TypeScript check. The skipped test is deliberately environment-gated: it requires two dedicated Supabase test accounts and runs when those credentials are supplied locally.
 
 | Area | Evidence | Result |
 | --- | --- | --- |
 | Intent extraction | time phrases, multiple experiences, exclusions, corrections, vague requests and hostile/invalid AI output | Pass |
 | Recommendation behaviour | context, preferences, feedback decay, history diversity, eligibility, deduplication and explanations | Pass |
-| Scenario benchmark | 11 predefined session scenarios with an expected top-ranked game | 11/11 (100%) |
+| Scenario benchmark | 20 predefined session scenarios with an expected top-ranked game | 20/20 (100%) |
 | Engine throughput | ranking 1,000 synthetic candidates on the local test machine | Pass: below the 1,000 ms guardrail |
 | API security structure | protected routes require bearer-token validation; browser clients use authenticated requests | Pass |
 | Database hardening | RLS, grants, ownership policies and bounded-value constraints are present in the migration | Pass |
 | Configuration | secrets excluded from Git, RAWG key remains server-only, security headers configured | Pass |
 | Accessibility structure | language, zoom-safe viewport, skip link, visible focus, mobile input sizing and reduced motion | Pass |
+| Authentication/product regression | recovery callback, safe redirect, autofill, display-name saving, pagination and image optimisation | Pass |
+| Live cross-user RLS | two-account read-isolation test | Environment-gated; skipped when dedicated credentials are absent |
 | Code quality | ESLint | Pass |
 | Type safety | TypeScript compiler without emitting files | Pass |
+| Production compilation | `npm run build -- --webpack`, including all 30 application routes | Pass |
 
 The scenario benchmark is a transparent, developer-authored test set. Its 100% result demonstrates agreement with those specified cases; it is not a claim of 100% recommendation accuracy for all users.
 
@@ -56,10 +59,12 @@ The strongest technical outcome is the separation of responsibilities. The AI in
 
 Testing also produced useful corrective evidence. A coordinated exclusion such as “no horror or strategy” originally captured only the first genre; the parser now handles all genres in the exclusion clause. A broad “Adventure” match also made an ordinary adventure game tie with a game explicitly tagged “Open World” and “Exploration”; primary experience signals now break that tie in favour of the more precise match.
 
+Live privilege inspection additionally showed that earlier database setup scripts had left broad authenticated grants in place. Because a later `GRANT` does not remove existing rights, the hardening migration now explicitly revokes all authenticated table privileges before granting the exact minimum required by each feature.
+
 ## 6. Limitations and next evidence
 
-- The 11-scenario benchmark is intentionally small and synthetic. A larger labelled dataset and real-user judgement would provide stronger external validity.
-- Authenticated end-to-end flows, account recovery and cross-user RLS isolation still require manual execution with dedicated test accounts.
+- The 20-scenario benchmark is synthetic. A larger independently labelled dataset and real-user judgement would provide stronger external validity.
+- Authenticated end-to-end flows and account recovery still require manual execution with dedicated test accounts. Cross-user read isolation now has a reproducible automated test, but it must be run against the live project by providing two dedicated account credentials.
 - The current rate limiter is appropriate for a single local process but a distributed production deployment would require a shared store.
 - The throughput guardrail measures the ranking function, not full network latency or browser rendering.
 - Formal usability evaluation with participants must not begin without confirming and, where required, obtaining university ethics approval.

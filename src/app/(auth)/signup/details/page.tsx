@@ -28,7 +28,7 @@ export default function SignupDetailsPage() {
       email: emailFromUrl,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/finish`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/finish")}`,
         data: {
           full_name: name,
         },

@@ -59,7 +59,7 @@ Use a development/test Supabase project. Record **Pass**, **Fail** or **Blocked*
 | H02 | Open a history item | Recommendation explanation/context is understandable | Not run |
 | H03 | Use history filters/empty state | Correct state is shown without layout shift | Not run |
 | S01 | Change genres, platforms and play style | Saved values persist after refresh | Not run |
-| S02 | Change display name | Dashboard greeting updates | Not run |
+| S02 | Change display name and save | Setting persists and dashboard greeting updates after navigation/refresh | Implemented; manual live check not run |
 | S03 | Trigger validation failure | Error is specific, readable and preserves valid edits | Not run |
 | S04 | Cancel/discard changes | Stored settings remain unchanged | Not run |
 | S05 | Use account/logout controls | Correct confirmation and navigation occur | Not run |

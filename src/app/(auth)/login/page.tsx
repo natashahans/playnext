@@ -1,14 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuthTransition } from "@/components/auth/AuthTransitionProvider";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const { navigateAuth } = useAuthTransition();
+  const searchParams = useSearchParams();
 
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(() => {
+    const error = searchParams.get("error");
+    if (error === "expired-auth-link") return "That sign-in link is invalid or expired. Please try again.";
+    if (error === "invalid-auth-link") return "That sign-in link is incomplete. Please request a new one.";
+    if (error === "service-configuration") return "PlayNext authentication is temporarily unavailable.";
+    return "";
+  });
 
   async function continueWithGoogle() {
     setGoogleLoading(true);
@@ -17,7 +25,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/finish")}`,
       },
     });
 

@@ -38,7 +38,6 @@ export default function DiscoveryGameCard({
               sizes="(max-width: 620px) 74vw, (max-width: 1100px) 36vw, 260px"
               className="object-cover"
               priority={priority}
-              unoptimized
             />
           ) : (
             <div className="discover-card-placeholder">

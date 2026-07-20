@@ -70,6 +70,8 @@ export default function SettingsPage() {
   const [difficultyPreference, setDifficultyPreference] = useState("");
   const [sessionLengthPreference, setSessionLengthPreference] = useState("");
   const [initialSnapshot, setInitialSnapshot] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [initialDisplayName, setInitialDisplayName] = useState("");
   const [account, setAccount] = useState<AccountInfo>({ email: "", createdAt: null });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -112,6 +114,11 @@ export default function SettingsPage() {
       setDifficultyPreference(loaded.difficultyPreference);
       setSessionLengthPreference(loaded.sessionLengthPreference);
       setInitialSnapshot(serializePreferences(loaded));
+      const loadedName = typeof userData.user.user_metadata?.full_name === "string"
+        ? userData.user.user_metadata.full_name.trim().slice(0, 80)
+        : "";
+      setDisplayName(loadedName);
+      setInitialDisplayName(loadedName);
       setAccount({
         email: profileResult.data?.email ?? userData.user.email ?? "No email available",
         createdAt: profileResult.data?.created_at ?? userData.user.created_at ?? null,
@@ -131,7 +138,10 @@ export default function SettingsPage() {
     sessionLengthPreference,
   }), [favoriteGenres, preferredPlatforms, playStyle, difficultyPreference, sessionLengthPreference]);
 
-  const hasChanges = initialSnapshot !== "" && serializePreferences(currentPreferences) !== initialSnapshot;
+  const hasChanges = initialSnapshot !== "" && (
+    serializePreferences(currentPreferences) !== initialSnapshot ||
+    displayName.trim() !== initialDisplayName
+  );
 
   const profileStrength = useMemo(() => {
     const signals = [
@@ -189,20 +199,32 @@ export default function SettingsPage() {
       return;
     }
 
-    const { error } = await supabase.from("user_preferences").upsert({
-      user_id: userData.user.id,
-      favorite_genres: favoriteGenres,
-      preferred_platforms: preferredPlatforms,
-      play_style: playStyle,
-      difficulty_preference: difficultyPreference,
-      session_length_preference: sessionLengthPreference,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id" });
+    const cleanedDisplayName = displayName.trim().slice(0, 80);
+    if (!cleanedDisplayName) {
+      setErrorMessage("Please enter the name PlayNext should use for you.");
+      setSaving(false);
+      return;
+    }
 
-    if (error) {
-      setErrorMessage("Your preferences couldn’t be saved. Please try again.");
+    const [preferencesResult, accountResult] = await Promise.all([
+      supabase.from("user_preferences").upsert({
+        user_id: userData.user.id,
+        favorite_genres: favoriteGenres,
+        preferred_platforms: preferredPlatforms,
+        play_style: playStyle,
+        difficulty_preference: difficultyPreference,
+        session_length_preference: sessionLengthPreference,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" }),
+      supabase.auth.updateUser({ data: { full_name: cleanedDisplayName } }),
+    ]);
+
+    if (preferencesResult.error || accountResult.error) {
+      setErrorMessage("Your settings couldn’t be saved completely. Please try again.");
     } else {
       setInitialSnapshot(serializePreferences(currentPreferences));
+      setDisplayName(cleanedDisplayName);
+      setInitialDisplayName(cleanedDisplayName);
       setSaved(true);
     }
     setSaving(false);
@@ -229,6 +251,20 @@ export default function SettingsPage() {
           <section className="settings-profile-card">
             <div className="settings-avatar"><UserRound size={25} /></div>
             <span>Signed-in account</span>
+            <label className="settings-name-field">
+              <span>Display name</span>
+              <input
+                type="text"
+                value={displayName}
+                maxLength={80}
+                autoComplete="name"
+                onChange={(event) => {
+                  setDisplayName(event.target.value);
+                  markChanged();
+                }}
+                placeholder="Your name"
+              />
+            </label>
             <h2>{account.email}</h2>
             <p>{account.createdAt ? `Member since ${new Date(account.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}` : "PlayNext member"}</p>
 
@@ -328,7 +364,7 @@ export default function SettingsPage() {
 
       <div className="settings-v2-savebar">
         <div>
-          {saved ? <span className="is-saved"><Check size={15} /> Preferences saved successfully</span> : hasChanges ? <span><Sparkles size={15} /> You have unsaved changes</span> : <span>Everything is up to date</span>}
+          {saved ? <span className="is-saved"><Check size={15} /> Settings saved successfully</span> : hasChanges ? <span><Sparkles size={15} /> You have unsaved changes</span> : <span>Everything is up to date</span>}
           <small>Changes affect future recommendations, not past history.</small>
         </div>
         <Button onClick={handleSave} loading={saving} disabled={!hasChanges}>{saving ? "Saving…" : "Save changes"}</Button>

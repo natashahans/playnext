@@ -172,7 +172,6 @@ export default function OnboardingCollectionPage() {
                             alt={game.name}
                             fill
                             className="object-cover"
-                            unoptimized
                           />
                         </div>
                       ) : (
@@ -221,7 +220,6 @@ export default function OnboardingCollectionPage() {
                           alt={game.name}
                           fill
                           className="object-cover"
-                          unoptimized
                         />
                       </div>
                     ) : (

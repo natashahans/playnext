@@ -40,6 +40,13 @@ import type {
 } from "@/types/intent";
 import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import { saveCatalogueGame } from "@/lib/catalogue-client";
+import {
+  clearDecisionSession,
+  initialDecisionMessage,
+  loadDecisionSession,
+  saveDecisionSession,
+  type StoredDecisionState,
+} from "@/lib/decision-session";
 
 type Relation<T> = T | T[] | null;
 
@@ -58,38 +65,17 @@ type FeedbackRow = {
   }>;
 };
 
-type StoredDecisionState = {
-  mode: RecommendationMode;
-  messages: IntentChatMessage[];
-  extractedIntent: ExtractedIntent | null;
-  recommendedGame: ScoredGame | null;
-  recommendationId: string | null;
-  evaluatedCount: number;
-};
-
 type HistoryRow = {
   game_id: string;
   created_at: string;
   games: Relation<{ rawg_id: number | null }>;
 };
 
-function initialMessage(mode: RecommendationMode): IntentChatMessage {
-  return {
-    id: `assistant-welcome-${mode}`,
-    role: "assistant",
-    content: mode === "collection"
-      ? "Tell me about the play session you want right now. I’ll choose the strongest fit from games you already own."
-      : "Tell me what kind of new game would fit right now. I’ll search beyond your collection and find a discovery matched to this session.",
-  };
-}
-
 const promptSuggestions = [
   "I have 30 minutes and want something relaxing",
   "I’m energetic and want difficult combat",
   "I’m tired but want a strong story",
 ];
-
-const DECISION_STORAGE_KEY = "playnext:active-decision:v1";
 
 function one<T>(relation: Relation<T>) {
   return Array.isArray(relation) ? relation[0] : relation;
@@ -105,7 +91,7 @@ function createMessage(role: "assistant" | "user", content: string): IntentChatM
 
 export default function RecommendPage() {
   const [mode, setMode] = useState<RecommendationMode>("collection");
-  const [messages, setMessages] = useState<IntentChatMessage[]>([initialMessage("collection")]);
+  const [messages, setMessages] = useState<IntentChatMessage[]>([initialDecisionMessage("collection")]);
   const [draft, setDraft] = useState("");
   const [interpreting, setInterpreting] = useState(false);
   const [ranking, setRanking] = useState(false);
@@ -123,23 +109,15 @@ export default function RecommendPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
-        const saved = window.sessionStorage.getItem(DECISION_STORAGE_KEY);
+        const saved = loadDecisionSession();
         if (saved) {
-          const parsed = JSON.parse(saved) as Partial<StoredDecisionState>;
-          const validMode = parsed.mode === "collection" || parsed.mode === "discovery";
-          const validMessages = Array.isArray(parsed.messages) && parsed.messages.length > 0;
-
-          if (validMode && validMessages) {
-            setMode(parsed.mode as RecommendationMode);
-            setMessages(parsed.messages as IntentChatMessage[]);
-            setExtractedIntent(parsed.extractedIntent ?? null);
-            setRecommendedGame(parsed.recommendedGame ?? null);
-            setRecommendationId(parsed.recommendationId ?? null);
-            setEvaluatedCount(parsed.evaluatedCount ?? 0);
-          }
+          setMode(saved.mode);
+          setMessages(saved.messages);
+          setExtractedIntent(saved.extractedIntent);
+          setRecommendedGame(saved.recommendedGame);
+          setRecommendationId(saved.recommendationId);
+          setEvaluatedCount(saved.evaluatedCount);
         }
-      } catch {
-        window.sessionStorage.removeItem(DECISION_STORAGE_KEY);
       } finally {
         setStorageReady(true);
       }
@@ -160,7 +138,7 @@ export default function RecommendPage() {
       evaluatedCount,
     };
 
-    window.sessionStorage.setItem(DECISION_STORAGE_KEY, JSON.stringify(state));
+    saveDecisionSession(state);
   }, [
     storageReady,
     mode,
@@ -443,8 +421,8 @@ export default function RecommendPage() {
   }
 
   function resetConversation() {
-    window.sessionStorage.removeItem(DECISION_STORAGE_KEY);
-    setMessages([initialMessage(mode)]);
+    clearDecisionSession();
+    setMessages([initialDecisionMessage(mode)]);
     setDraft("");
     setErrorMessage("");
     setExtractedIntent(null);
@@ -461,7 +439,7 @@ export default function RecommendPage() {
   function changeMode(nextMode: RecommendationMode) {
     if (nextMode === mode) return;
     setMode(nextMode);
-    setMessages([initialMessage(nextMode)]);
+    setMessages([initialDecisionMessage(nextMode)]);
     setDraft("");
     setErrorMessage("");
     setExtractedIntent(null);
@@ -676,7 +654,7 @@ export default function RecommendPage() {
         <section className="ai-recommendation" ref={recommendationRef}>
           <div className="ai-recommendation-artwork">
             {recommendedGame.background_image ? (
-              <Image src={recommendedGame.background_image} alt="" fill priority sizes="(max-width: 900px) 100vw, 45vw" className="object-cover" unoptimized />
+              <Image src={recommendedGame.background_image} alt="" fill priority sizes="(max-width: 900px) 100vw, 45vw" className="object-cover" />
             ) : (
               <div className="game-artwork-placeholder"><Gamepad2 size={34} /></div>
             )}

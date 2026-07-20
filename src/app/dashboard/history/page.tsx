@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 type Relation<T> = T | T[] | null;
 type ModeFilter = "all" | "collection" | "discovery";
 type FeedbackFilter = "all" | "with_feedback" | "without_feedback";
+const HISTORY_PAGE_SIZE = 30;
 
 type HistoryItem = {
   id: string;
@@ -70,9 +71,12 @@ export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [loadMoreError, setLoadMoreError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [modeFilter, setModeFilter] = useState<ModeFilter>("all");
   const [feedbackFilter, setFeedbackFilter] = useState<FeedbackFilter>("all");
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -106,12 +110,17 @@ export default function HistoryPage() {
           feedback ( feedback_type, reason )
         `)
         .eq("user_id", userData.user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(0, HISTORY_PAGE_SIZE - 1);
 
       if (!active) return;
 
       if (error) setErrorMessage("We couldn’t load your recommendation history.");
-      else setHistory((data ?? []) as unknown as HistoryItem[]);
+      else {
+        const rows = (data ?? []) as unknown as HistoryItem[];
+        setHistory(rows);
+        setHasMore(rows.length === HISTORY_PAGE_SIZE);
+      }
       setLoading(false);
     }
 
@@ -153,6 +162,41 @@ export default function HistoryPage() {
     setSearchQuery("");
     setModeFilter("all");
     setFeedbackFilter("all");
+  }
+
+  async function loadMoreHistory() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setLoadMoreError("");
+
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      setLoadMoreError("Your session has expired. Please log in again.");
+      setLoadingMore(false);
+      return;
+    }
+
+    const from = history.length;
+    const { data, error } = await supabase
+      .from("recommendations")
+      .select(`
+        id, created_at, score, explanation, score_breakdown,
+        games ( title, slug, background_image, genres ),
+        recommendation_sessions ( user_input, recommendation_mode, mood, available_time, energy_level, desired_experience ),
+        feedback ( feedback_type, reason )
+      `)
+      .eq("user_id", userData.user.id)
+      .order("created_at", { ascending: false })
+      .range(from, from + HISTORY_PAGE_SIZE - 1);
+
+    if (error) {
+      setLoadMoreError("More history could not be loaded. Please try again.");
+    } else {
+      const rows = (data ?? []) as unknown as HistoryItem[];
+      setHistory((current) => [...current, ...rows]);
+      setHasMore(rows.length === HISTORY_PAGE_SIZE);
+    }
+    setLoadingMore(false);
   }
 
   if (loading) {
@@ -215,7 +259,7 @@ export default function HistoryPage() {
                 return (
                   <article key={item.id} className="history-v2-card">
                     <div className="history-v2-artwork">
-                      {game?.background_image ? <Image src={game.background_image} alt="" fill sizes="220px" className="object-cover" unoptimized /> : <div className="game-artwork-placeholder"><Gamepad2 size={25} /></div>}
+                      {game?.background_image ? <Image src={game.background_image} alt="" fill sizes="220px" className="object-cover" /> : <div className="game-artwork-placeholder"><Gamepad2 size={25} /></div>}
                       <span className="history-v2-date"><CalendarDays size={12} /> {new Date(item.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
                     </div>
 
@@ -265,6 +309,14 @@ export default function HistoryPage() {
                   </article>
                 );
               })}
+            </div>
+          )}
+          {hasMore && !searchQuery && modeFilter === "all" && feedbackFilter === "all" && (
+            <div className="lib-load-more">
+              {loadMoreError && <div className="lib-inline-error" role="alert">{loadMoreError}</div>}
+              <Button variant="secondary" onClick={loadMoreHistory} loading={loadingMore}>
+                {loadingMore ? "Loading more…" : "Load more history"}
+              </Button>
             </div>
           )}
         </>

@@ -46,6 +46,15 @@ const scenarios: Array<{ id: string; expected: string; intent: ExtractedIntent }
   { id: "solo-exploration", expected: "Wide Horizon", intent: intent({ availableTime: 150, desiredExperiences: ["exploration"], multiplayerPreference: "solo" }) },
   { id: "story-without-horror", expected: "Kingdom Stories", intent: intent({ desiredExperiences: ["story"], avoidedGenres: ["Horror"] }) },
   { id: "direct-reference", expected: "Tactical Crown", intent: intent({ referenceGames: ["Tactical Crown"] }) },
+  { id: "easy-cozy-puzzle", expected: "Quiet Garden", intent: intent({ mood: "calm", energyLevel: "low", desiredExperiences: ["relaxing"], preferredGenres: ["Puzzle"] }) },
+  { id: "hard-action-shooter", expected: "Combat Rush", intent: intent({ energyLevel: "high", desiredExperiences: ["action"], difficultyPreference: "hard", preferredGenres: ["Shooter"] }) },
+  { id: "long-rpg-narrative", expected: "Kingdom Stories", intent: intent({ availableTime: 240, desiredExperiences: ["story"], preferredGenres: ["RPG"] }) },
+  { id: "open-world-wander", expected: "Wide Horizon", intent: intent({ desiredExperiences: ["exploration"], preferredGenres: ["Adventure"] }) },
+  { id: "multiplayer-party", expected: "Together We Go", intent: intent({ desiredExperiences: ["social"], multiplayerPreference: "multiplayer", preferredGenres: ["Casual"] }) },
+  { id: "turn-based-tactics", expected: "Tactical Crown", intent: intent({ desiredExperiences: ["strategic"], preferredGenres: ["Strategy"] }) },
+  { id: "sandbox-creation", expected: "Builder's Haven", intent: intent({ desiredExperiences: ["creative"], preferredGenres: ["Simulation", "Indie"] }) },
+  { id: "arcade-speed", expected: "Velocity Circuit", intent: intent({ availableTime: 15, energyLevel: "high", desiredExperiences: ["action"], preferredGenres: ["Racing"] }) },
+  { id: "psychological-horror", expected: "Midnight House", intent: intent({ desiredExperiences: ["scary", "immersive"], preferredGenres: ["Horror"] }) },
 ];
 
 test("benchmark scenarios achieve at least 90% top-one agreement", () => {

@@ -42,6 +42,7 @@ type CollectionRow = {
 
 type SortOption = "recent" | "title" | "rating";
 type StatusFilter = "all" | "backlog" | "playing" | "completed";
+const COLLECTION_PAGE_SIZE = 48;
 
 const statusOptions = [
   { value: "backlog", label: "Backlog" },
@@ -67,6 +68,8 @@ export default function CollectionPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [genreFilter, setGenreFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortOption>("recent");
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -99,14 +102,17 @@ export default function CollectionPage() {
           )
         `)
         .eq("user_id", userData.user.id)
-        .order("added_at", { ascending: false });
+        .order("added_at", { ascending: false })
+        .range(0, COLLECTION_PAGE_SIZE - 1);
 
       if (!active) return;
 
       if (error) {
         setErrorMessage("We couldn’t load your collection. Please refresh and try again.");
       } else {
-        setCollection((data ?? []) as unknown as CollectionRow[]);
+        const rows = (data ?? []) as unknown as CollectionRow[];
+        setCollection(rows);
+        setHasMore(rows.length === COLLECTION_PAGE_SIZE);
       }
       setLoading(false);
     }
@@ -189,6 +195,41 @@ export default function CollectionPage() {
     setSearchQuery("");
     setStatusFilter("all");
     setGenreFilter("all");
+  }
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setStatusError("");
+
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      setStatusError("Your session has expired. Please log in again.");
+      setLoadingMore(false);
+      return;
+    }
+
+    const from = collection.length;
+    const { data, error } = await supabase
+      .from("user_games")
+      .select(`
+        id,
+        status,
+        added_at,
+        games ( id, slug, title, background_image, released, rating, playtime, genres, platforms )
+      `)
+      .eq("user_id", userData.user.id)
+      .order("added_at", { ascending: false })
+      .range(from, from + COLLECTION_PAGE_SIZE - 1);
+
+    if (error) {
+      setStatusError("More games could not be loaded. Please try again.");
+    } else {
+      const rows = (data ?? []) as unknown as CollectionRow[];
+      setCollection((current) => [...current, ...rows]);
+      setHasMore(rows.length === COLLECTION_PAGE_SIZE);
+    }
+    setLoadingMore(false);
   }
 
   if (loading) {
@@ -294,7 +335,7 @@ export default function CollectionPage() {
                   <article key={row.id} className="collection-v2-card">
                     <div className="collection-v2-artwork">
                       {game.background_image ? (
-                        <Image src={game.background_image} alt="" fill sizes="(max-width: 700px) 100vw, (max-width: 1180px) 50vw, 33vw" className="object-cover" unoptimized />
+                        <Image src={game.background_image} alt="" fill sizes="(max-width: 700px) 100vw, (max-width: 1180px) 50vw, 33vw" className="object-cover" />
                       ) : <div className="game-artwork-placeholder"><Gamepad2 size={28} /></div>}
                       <span className={`collection-status collection-status-${row.status}`}>{statusLabel(row.status)}</span>
                       {game.rating != null && game.rating > 0 && <span className="collection-rating"><Star size={12} fill="currentColor" /> {game.rating.toFixed(1)}</span>}
@@ -327,6 +368,13 @@ export default function CollectionPage() {
                   </article>
                 );
               })}
+            </div>
+          )}
+          {hasMore && !searchQuery && statusFilter === "all" && genreFilter === "all" && (
+            <div className="lib-load-more">
+              <Button variant="secondary" onClick={loadMore} loading={loadingMore}>
+                {loadingMore ? "Loading more…" : "Load more games"}
+              </Button>
             </div>
           )}
         </>

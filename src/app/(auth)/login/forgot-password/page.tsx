@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
         email.trim(),
         {
           redirectTo:
-            `${window.location.origin}/auth/reset-password`,
+            `${window.location.origin}/auth/callback?next=${encodeURIComponent("/login/reset-password")}`,
         }
       );
 
