@@ -10,7 +10,7 @@ export type StoredDecisionState = {
   evaluatedCount: number;
 };
 
-const DECISION_STORAGE_KEY = "playnext:active-decision:v1";
+const DECISION_STORAGE_KEY = "playnext:active-decision:v2";
 
 export function initialDecisionMessage(mode: RecommendationMode): IntentChatMessage {
   return {

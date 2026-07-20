@@ -44,12 +44,14 @@ Use a development/test Supabase project. Record **Pass**, **Fail** or **Blocked*
 | D06 | Expand complete score | Details expand without resizing/distorting the game artwork | Not run |
 | D07 | Continue the conversation after a result | Context remains available and a follow-up can refine the answer | Not run |
 | D08 | Ask again | New recommendation avoids immediate repetition where alternatives exist | Not run |
+| D09 | Give a deliberately vague request with several equal candidates | PlayNext asks one targeted clarification instead of presenting an arbitrary winner | Not run |
 | F01 | Mark Great match | Feedback persists and positively supports later similar matches | Not run |
 | F02 | Mark Not my mood | Game is reduced for the current period, not permanently deleted | Not run |
 | F03 | Mark Too long | Short future requests penalise the game more than long requests | Not run |
 | F04 | Mark Too difficult | Easy requests penalise the game appropriately | Not run |
 | F05 | Mark Not interested | Strong negative feedback persists | Not run |
 | F06 | Submit feedback twice | One controlled feedback record/result is produced | Not run |
+| F07 | Add a note such as “I want less combat tonight” | Similar combat-heavy games receive a small temporary reduction; unrelated games are not broadly penalised | Not run |
 
 ## History and settings
 

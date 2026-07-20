@@ -586,6 +586,8 @@
 }
 .ai-recommendation-explanation svg { flex: 0 0 auto; }
 .ai-recommendation-explanation p { margin: 0; color: var(--color-ink-soft); font-size: 14px; line-height: 1.62; }
+.ai-decision-confidence { margin: 11px 0 0; color: var(--color-muted); font-size: 12px; line-height: 1.5; }
+.ai-decision-confidence strong { color: var(--color-ink-soft); font-weight: 760; }
 .ai-match-reasons { margin-top: 17px; display: flex; flex-direction: column; gap: 10px; }
 .ai-match-reasons > div { display: flex; align-items: flex-start; gap: 9px; color: var(--color-ink-soft); font-size: 13px; line-height: 1.5; }
 .ai-match-reasons svg { margin-top: 2px; flex: 0 0 auto; color: var(--color-success); }

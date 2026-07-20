@@ -13,6 +13,7 @@ The AI has one bounded responsibility: converting conversation into structured i
 - conversational intent extraction with persistent in-progress decisions
 - collection and discovery recommendation modes
 - explainable scoring, recommendation history and feedback learning
+- calibrated decision confidence and targeted clarification when leading matches are too close
 - editable personal preferences, display name and account settings
 - responsive desktop, tablet and mobile layouts
 
@@ -31,9 +32,10 @@ The AI has one bounded responsibility: converting conversation into structured i
 1. The signed-in user selects their collection or discovery as the candidate source.
 2. Their conversation is interpreted into a bounded `ExtractedIntent` object.
 3. The server retrieves the relevant candidates and the user's saved signals.
-4. The deterministic engine applies hard eligibility rules, scores multiple weighted factors, deduplicates candidates and ranks the result.
-5. PlayNext stores the recommendation and shows the leading reasons and score breakdown.
-6. Feedback becomes a time-decaying signal for later decisions; it does not permanently exclude a game unless the current request requires that exclusion.
+4. The deterministic engine applies hard eligibility rules, scores multiple weighted factors, reliability-weights public ratings, deduplicates candidates and ranks the result.
+5. If evidence is weak and leading candidates are close, PlayNext asks one targeted clarification instead of forcing a winner.
+6. PlayNext stores the recommendation and shows the leading reasons, score breakdown, decision confidence and lead over the next eligible match.
+7. Feedback becomes a time-decaying similarity signal for later decisions; it does not permanently exclude a game unless the current request requires that exclusion.
 
 ## Local setup
 
@@ -63,7 +65,7 @@ Apply the SQL files in `supabase/migrations` to the intended Supabase project in
 npm run verify
 ```
 
-This runs the complete automated test suite, ESLint and a no-output TypeScript compile. Recommendation-only and security-focused subsets are also available through `npm run test:engine` and `npm run test:security`.
+This runs the complete automated test suite, ESLint and a no-output TypeScript compile. Recommendation-only, benchmark and security-focused subsets are available through `npm run test:engine`, `npm run test:evaluation` and `npm run test:security`.
 
 `tests/liveRls.test.mts` is skipped unless two dedicated test accounts are supplied through the `PLAYNEXT_TEST_USER_A_*` and `PLAYNEXT_TEST_USER_B_*` environment variables. Those accounts allow a read-only, cross-user isolation check against the real Supabase project without embedding credentials in source control.
 
@@ -71,6 +73,8 @@ The reproducible manual test procedure and requirements traceability are in:
 
 - `docs/TESTING_AND_EVALUATION.md`
 - `docs/MANUAL_QA_CHECKLIST.md`
+- `docs/RECOMMENDATION_ENGINE.md`
+- `docs/USABILITY_EVALUATION_PROTOCOL.md`
 
 ## Security and privacy
 

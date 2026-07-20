@@ -156,7 +156,7 @@ export default function FeedbackButtons({ recommendationId }: { recommendationId
 
           {selectedOption.type !== "liked" && (
             <>
-              <label htmlFor="feedback-reason">Optional note <span>Useful for reviewing why this result missed</span></label>
+              <label htmlFor="feedback-reason">Optional note <span>Clear “less/avoid/without” preferences can influence similar future matches</span></label>
               <textarea
                 id="feedback-reason"
                 value={reason}
@@ -168,7 +168,7 @@ export default function FeedbackButtons({ recommendationId }: { recommendationId
           )}
 
           <div>
-            <span>{selectedOption.type === "liked" ? "The selected reason controls ranking." : `${reason.length}/240 · The selected reason controls ranking.`}</span>
+            <span>{selectedOption.type === "liked" ? "The selected reason controls ranking." : `${reason.length}/240 · The structured reason has the strongest effect.`}</span>
             <button type="button" onClick={handleSave} disabled={saving}>
               {saving ? "Saving…" : "Save feedback"}
             </button>

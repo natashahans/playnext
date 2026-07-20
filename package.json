@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/*.test.mts",
     "test:engine": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/recommendationEngine.test.mts tests/recommendationEvaluation.test.mts",
+    "test:evaluation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/recommendationEvaluation.test.mts",
+    "test:live-rls": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/liveRls.test.mts",
     "test:intent": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/intent.test.mts",
     "test:security": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/security.test.mts tests/configuration.test.mts tests/databasePolicy.test.mts",
     "typecheck": "tsc --noEmit --incremental false",

@@ -154,6 +154,17 @@ function hasAvoidedGenre(game: RawgGame, avoidedGenres: string[]) {
   });
 }
 
+function interleaveGroups(groups: RawgGame[][]) {
+  const output: RawgGame[] = [];
+  const longest = Math.max(0, ...groups.map((group) => group.length));
+  for (let index = 0; index < longest; index += 1) {
+    groups.forEach((group) => {
+      if (group[index]) output.push(group[index]);
+    });
+  }
+  return output;
+}
+
 export async function getRecommendationCandidates({
   intent,
   preferences,
@@ -175,13 +186,22 @@ export async function getRecommendationCandidates({
   if (genres.length > 0) contextualParams.genres = genres.join(",");
   if (platforms.length > 0) contextualParams.platforms = platforms.join(",");
 
+  const focusedGenreRequests = genres.slice(0, 3).map((genre) =>
+    getGames({
+      genres: genre,
+      ...(platforms.length > 0 ? { platforms: platforms.join(",") } : {}),
+      ordering: "-rating",
+      page_size: 24,
+    })
+  );
   const candidateRequests = await Promise.allSettled([
     getGames(contextualParams),
+    ...focusedGenreRequests,
     getGames({ dates: `${fourYearsAgo},${today}`, ordering: "-added", page_size: 30 }),
     getGames({ metacritic: "78,100", ordering: "-metacritic", page_size: 30 }),
   ]);
 
-  const [contextual = [], popular = [], acclaimed = []] = candidateRequests.map((result) =>
+  const candidateGroups = candidateRequests.map((result) =>
     result.status === "fulfilled" ? result.value : []
   );
 
@@ -192,7 +212,7 @@ export async function getRecommendationCandidates({
   const excluded = new Set(excludedRawgIds);
   const seen = new Set<number>();
 
-  return [...contextual, ...popular, ...acclaimed]
+  return interleaveGroups(candidateGroups)
     .filter((game) => {
       if (excluded.has(game.id) || seen.has(game.id) || hasAvoidedGenre(game, intent.avoidedGenres)) {
         return false;
@@ -200,7 +220,7 @@ export async function getRecommendationCandidates({
       seen.add(game.id);
       return Boolean(game.background_image) && (game.rating ?? 0) > 0;
     })
-    .slice(0, 60);
+    .slice(0, 90);
 }
 
 export async function searchGames(query: string) {

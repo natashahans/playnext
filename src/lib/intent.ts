@@ -254,19 +254,60 @@ export function buildIntentSummary(intent: ExtractedIntent) {
 export function normalizeChatResponse(value: unknown, messages: IntentChatMessage[]): IntentChatResponse {
   const fallback = fallbackIntent(messages);
   const input = asRecord(value);
-  const intent = normalizeIntent(input.intent);
+  const modelIntent = normalizeIntent(input.intent);
+  const userText = messages
+    .filter((message) => message.role === "user")
+    .map((message) => message.content.toLowerCase().replace(/[^a-z0-9]+/g, " "))
+    .join(" ");
+  const groundedReferences = modelIntent.referenceGames.filter((game) => {
+    const target = game.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    return target.length >= 3 && userText.includes(target);
+  });
+  const groundedModelGenres = modelIntent.preferredGenres.filter((genre) =>
+    userText.includes(genre.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim())
+  );
+  const intent = normalizeIntent({
+    ...modelIntent,
+    availableTime: fallback.intent.availableTime ?? modelIntent.availableTime,
+    mood: fallback.intent.mood !== "unknown" ? fallback.intent.mood : modelIntent.mood,
+    energyLevel: fallback.intent.energyLevel !== "unknown" ? fallback.intent.energyLevel : modelIntent.energyLevel,
+    desiredExperiences: Array.from(new Set([
+      ...fallback.intent.desiredExperiences,
+      ...modelIntent.desiredExperiences,
+    ])),
+    preferredGenres: Array.from(new Set([
+      ...fallback.intent.preferredGenres,
+      ...groundedModelGenres,
+    ])).filter((genre) => !fallback.intent.avoidedGenres.includes(genre)),
+    avoidedGenres: fallback.intent.avoidedGenres,
+    referenceGames: groundedReferences,
+  });
   const userTurnCount = messages.filter((message) => message.role === "user").length;
+  const hasSpecificExperience = intent.desiredExperiences.some((experience) => experience !== "surprise");
   const hasSignal =
     intent.availableTime !== null ||
     intent.mood !== "unknown" ||
     intent.energyLevel !== "unknown" ||
-    intent.desiredExperiences.length > 0 ||
+    hasSpecificExperience ||
     intent.preferredGenres.length > 0 ||
     intent.difficultyPreference !== "unknown";
   const requestedStatus = cleanString(input.status);
   const ready = requestedStatus === "ready" && hasSignal || userTurnCount >= 2;
 
-  intent.summary = intent.summary || buildIntentSummary(intent);
+  const evidenceSignals = [
+    intent.availableTime !== null,
+    intent.mood !== "unknown",
+    intent.energyLevel !== "unknown",
+    intent.desiredExperiences.length > 0,
+    intent.preferredGenres.length > 0,
+    intent.avoidedGenres.length > 0,
+    intent.difficultyPreference !== "unknown",
+    intent.sessionPace !== "unknown",
+    intent.multiplayerPreference !== "unknown",
+    intent.referenceGames.length > 0,
+  ].filter(Boolean).length;
+  intent.confidence = Math.min(intent.confidence, clamp(0.3 + evidenceSignals * 0.11, 0.3, 0.96));
+  intent.summary = buildIntentSummary(intent);
 
   return {
     status: ready ? "ready" : "needs_clarification",

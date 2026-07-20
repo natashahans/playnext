@@ -10,13 +10,15 @@ PlayNext uses layered verification so that a single successful page load is not 
 
 ## 2. Automated result
 
-The complete local gate passed **71 automated tests with 1 optional live test skipped**, followed by a clean ESLint run and a clean TypeScript check. The skipped test is deliberately environment-gated: it requires two dedicated Supabase test accounts and runs when those credentials are supplied locally.
+The complete local gate passed **91 automated tests with 1 optional live test skipped**, followed by a clean ESLint run and a clean TypeScript check. The skipped test is deliberately environment-gated: it requires two dedicated Supabase test accounts and runs when those credentials are supplied locally.
 
 | Area | Evidence | Result |
 | --- | --- | --- |
-| Intent extraction | time phrases, multiple experiences, exclusions, corrections, vague requests and hostile/invalid AI output | Pass |
-| Recommendation behaviour | context, preferences, feedback decay, history diversity, eligibility, deduplication and explanations | Pass |
-| Scenario benchmark | 20 predefined session scenarios with an expected top-ranked game | 20/20 (100%) |
+| Intent extraction | time phrases, multiple experiences, exclusions, corrections, vague requests, grounded reference games and hostile/invalid AI output | Pass |
+| Recommendation behaviour | context, preferences, feedback decay/similarity, negative-note transfer, history and genre diversity, eligibility, deduplication, calibration and explanations | Pass |
+| Ambiguity handling | close sparse rankings request clarification; strong separated rankings proceed | Pass |
+| Rating reliability | tiny public-rating samples cannot outrank equally rated well-supported candidates | Pass |
+| Scenario benchmark | 30 predefined session scenarios with an expected top-ranked game | 30/30 (100%) |
 | Engine throughput | ranking 1,000 synthetic candidates on the local test machine | Pass: below the 1,000 ms guardrail |
 | API security structure | protected routes require bearer-token validation; browser clients use authenticated requests | Pass |
 | Database hardening | RLS, grants, ownership policies and bounded-value constraints are present in the migration | Pass |
@@ -57,16 +59,16 @@ The public authentication experience was inspected in the in-app browser at 320�
 
 The strongest technical outcome is the separation of responsibilities. The AI interprets the conversation into bounded criteria, while deterministic application code ranks candidates using live context, saved preferences, previous feedback, history and game quality. This is easier to test and explain than allowing a language model to choose the result directly. The two recommendation sources use the same scoring process but different candidate pools.
 
-Testing also produced useful corrective evidence. A coordinated exclusion such as “no horror or strategy” originally captured only the first genre; the parser now handles all genres in the exclusion clause. A broad “Adventure” match also made an ordinary adventure game tie with a game explicitly tagged “Open World” and “Exploration”; primary experience signals now break that tie in favour of the more precise match.
+Testing also produced useful corrective evidence. A coordinated exclusion such as “no horror or strategy” originally captured only the first genre; the parser now handles all genres in the exclusion clause. A broad “Adventure” match also made an ordinary adventure game tie with a game explicitly tagged “Open World” and “Exploration”; primary experience signals now break that tie in favour of the more precise match. Later evaluation identified that a forced winner could still be presented when two candidates were effectively tied. The current engine calculates a separate decision-confidence value and asks one discriminating question when evidence and score separation are insufficient. Public rating is now reliability-weighted so a tiny rating sample cannot dominate a well-supported candidate.
 
 Live privilege inspection additionally showed that earlier database setup scripts had left broad authenticated grants in place. Because a later `GRANT` does not remove existing rights, the hardening migration now explicitly revokes all authenticated table privileges before granting the exact minimum required by each feature.
 
 ## 6. Limitations and next evidence
 
-- The 20-scenario benchmark is synthetic. A larger independently labelled dataset and real-user judgement would provide stronger external validity.
+- The 30-scenario benchmark is synthetic. A larger independently labelled holdout set and real-user judgement would provide stronger external validity.
 - Authenticated end-to-end flows and account recovery still require manual execution with dedicated test accounts. Cross-user read isolation now has a reproducible automated test, but it must be run against the live project by providing two dedicated account credentials.
 - The current rate limiter is appropriate for a single local process but a distributed production deployment would require a shared store.
 - The throughput guardrail measures the ranking function, not full network latency or browser rendering.
 - Formal usability evaluation with participants must not begin without confirming and, where required, obtaining university ethics approval.
 
-Complete `docs/MANUAL_QA_CHECKLIST.md`, save screenshots or screen recordings for important cases, and retain anonymised results as evaluation evidence. Do not include passwords, API keys, access tokens or identifiable participant data.
+Complete `docs/MANUAL_QA_CHECKLIST.md`, follow `docs/USABILITY_EVALUATION_PROTOCOL.md` only after satisfying its ethics gate, and retain anonymised evidence. Do not include passwords, API keys, access tokens or identifiable participant data.

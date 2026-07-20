@@ -13,6 +13,8 @@ export type RecommendationGame = {
   background_image?: string | null;
   released?: string | null;
   rating: number | null;
+  ratings_count?: number | null;
+  metacritic?: number | null;
   genres: string[] | null;
   platforms?: string[] | null;
   playtime?: number | null;
@@ -55,6 +57,9 @@ export type ScoreBreakdownItem = {
 export type ScoredGame = RecommendationGame & {
   score: number;
   confidenceBand: "low" | "medium" | "high";
+  selectionConfidence: number;
+  scoreMargin: number;
+  rank: number;
   isEligible: boolean;
   exclusionReasons: string[];
   explanation: string;
@@ -67,4 +72,13 @@ export type PreviousRecommendation = {
   game_id: string;
   rawg_id?: number | null;
   created_at: string;
+  genres?: string[] | null;
+};
+
+export type RecommendationAssessment = {
+  shouldClarify: boolean;
+  selectionConfidence: number;
+  scoreMargin: number;
+  evidenceCount: number;
+  question: string | null;
 };

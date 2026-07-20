@@ -55,6 +55,16 @@ const scenarios: Array<{ id: string; expected: string; intent: ExtractedIntent }
   { id: "sandbox-creation", expected: "Builder's Haven", intent: intent({ desiredExperiences: ["creative"], preferredGenres: ["Simulation", "Indie"] }) },
   { id: "arcade-speed", expected: "Velocity Circuit", intent: intent({ availableTime: 15, energyLevel: "high", desiredExperiences: ["action"], preferredGenres: ["Racing"] }) },
   { id: "psychological-horror", expected: "Midnight House", intent: intent({ desiredExperiences: ["scary", "immersive"], preferredGenres: ["Horror"] }) },
+  { id: "exhausted-peaceful", expected: "Quiet Garden", intent: intent({ mood: "tired", energyLevel: "low", desiredExperiences: ["relaxing"], sessionPace: "slow" }) },
+  { id: "focused-management", expected: "Tactical Crown", intent: intent({ mood: "focused", desiredExperiences: ["strategic"], preferredGenres: ["Strategy"] }) },
+  { id: "restless-fast-race", expected: "Velocity Circuit", intent: intent({ mood: "restless", energyLevel: "high", sessionPace: "fast", preferredGenres: ["Racing"] }) },
+  { id: "happy-party-night", expected: "Together We Go", intent: intent({ mood: "happy", desiredExperiences: ["social"], multiplayerPreference: "multiplayer" }) },
+  { id: "creative-building", expected: "Builder's Haven", intent: intent({ desiredExperiences: ["creative"], preferredGenres: ["Simulation"] }) },
+  { id: "short-coop-session", expected: "Together We Go", intent: intent({ availableTime: 25, desiredExperiences: ["social"], multiplayerPreference: "multiplayer" }) },
+  { id: "long-open-exploration", expected: "Wide Horizon", intent: intent({ availableTime: 240, desiredExperiences: ["exploration"], preferredGenres: ["Adventure"] }) },
+  { id: "solo-narrative-rpg", expected: "Kingdom Stories", intent: intent({ desiredExperiences: ["story"], preferredGenres: ["RPG"], multiplayerPreference: "solo" }) },
+  { id: "quick-horror", expected: "Midnight House", intent: intent({ availableTime: 30, desiredExperiences: ["scary"], preferredGenres: ["Horror"] }) },
+  { id: "forgiving-puzzle-break", expected: "Quiet Garden", intent: intent({ availableTime: 20, difficultyPreference: "easy", preferredGenres: ["Puzzle"] }) },
 ];
 
 test("benchmark scenarios achieve at least 90% top-one agreement", () => {

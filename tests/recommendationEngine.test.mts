@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { scoreGames } from "../src/lib/recommendationEngine.ts";
+import { assessRecommendationDecision, scoreGames } from "../src/lib/recommendationEngine.ts";
 import { fallbackIntent } from "../src/lib/intent.ts";
 import type {
   ExtractedIntent,
@@ -11,6 +11,7 @@ import type {
 } from "../src/lib/recommendation/types.ts";
 
 const NOW = Date.UTC(2026, 6, 20, 12);
+const DAY_MS = 86_400_000;
 
 function intent(overrides: Partial<ExtractedIntent> = {}): ExtractedIntent {
   return {
@@ -205,4 +206,89 @@ test("a later message can correct an earlier genre exclusion", () => {
 
   assert.ok(!result.intent.avoidedGenres.includes("Strategy"));
   assert.ok(result.intent.preferredGenres.includes("Strategy"));
+});
+
+test("an ambiguous close ranking requests one discriminating clarification", () => {
+  const first = game("20", "Option One", ["Adventure"]);
+  const second = game("21", "Option Two", ["Adventure"]);
+  const sparse = intent({ confidence: 0.25 });
+  const assessment = assessRecommendationDecision(
+    scoreGames([first, second], sparse, [], null, [], { now: NOW }),
+    sparse
+  );
+
+  assert.equal(assessment.shouldClarify, true);
+  assert.ok((assessment.question?.length ?? 0) > 20);
+  assert.ok(assessment.selectionConfidence < 45);
+});
+
+test("strong context with a clear winner does not ask an unnecessary question", () => {
+  const clearIntent = intent({
+    availableTime: 25,
+    mood: "tired",
+    energyLevel: "low",
+    desiredExperiences: ["relaxing"],
+    difficultyPreference: "easy",
+    confidence: 0.95,
+  });
+  const assessment = assessRecommendationDecision(
+    scoreGames([cozy, action], clearIntent, [], null, [], { now: NOW }),
+    clearIntent
+  );
+
+  assert.equal(assessment.shouldClarify, false);
+  assert.ok(assessment.scoreMargin > 3);
+});
+
+test("public rating quality is discounted when almost nobody rated the game", () => {
+  const weakEvidence = game("22", "Tiny Sample", ["Adventure"], [], { rating: 4.8, ratings_count: 2 });
+  const strongEvidence = game("23", "Established Choice", ["Adventure"], [], { rating: 4.8, ratings_count: 10_000 });
+  const ranked = scoreGames([weakEvidence, strongEvidence], intent(), [], null, [], { now: NOW });
+
+  assert.equal(ranked[0].id, strongEvidence.id);
+});
+
+test("a clear negative feedback note transfers cautiously to similar future games", () => {
+  const previous = game("24", "Old Arena", ["Action"], ["Combat"]);
+  const feedback: PreviousFeedback[] = [{
+    game_id: previous.id,
+    feedback_type: "not_in_mood",
+    reason: "I want less combat tonight",
+    created_at: new Date(NOW - DAY_MS).toISOString(),
+    game: previous,
+  }];
+  const anotherAction = game("25", "Another Arena", ["Action"], ["Combat"]);
+  const neutralPuzzle = game("26", "Clear Shapes", ["Puzzle"], ["Casual"]);
+  const ranked = scoreGames([anotherAction, neutralPuzzle], intent(), feedback, null, [], { now: NOW });
+
+  assert.equal(ranked[0].id, neutralPuzzle.id);
+});
+
+test("recent same-genre recommendations create a small diversity adjustment", () => {
+  const recentHistory: PreviousRecommendation[] = [{
+    game_id: "different-action-game",
+    created_at: new Date(NOW - DAY_MS).toISOString(),
+    genres: ["Action"],
+  }];
+  const anotherAction = game("27", "Action Again", ["Action"]);
+  const adventure = game("28", "Fresh Adventure", ["Adventure"]);
+  const ranked = scoreGames([anotherAction, adventure], intent(), [], null, recentHistory, { now: NOW });
+
+  assert.equal(ranked[0].id, adventure.id);
+});
+
+test("ranking is deterministic regardless of candidate input order", () => {
+  const session = intent({ desiredExperiences: ["action"], energyLevel: "high" });
+  const forward = scoreGames([cozy, action, epic], session, [], null, [], { now: NOW }).map((item) => item.id);
+  const reverse = scoreGames([epic, action, cozy], session, [], null, [], { now: NOW }).map((item) => item.id);
+  assert.deepEqual(forward, reverse);
+});
+
+test("every score and confidence value stays inside its documented range", () => {
+  const ranked = scoreGames([cozy, action, epic], intent({ confidence: 1 }), [], null, [], { now: NOW });
+  ranked.forEach((item) => {
+    assert.ok(item.score >= 0 && item.score <= 100);
+    assert.ok(item.selectionConfidence >= 0 && item.selectionConfidence <= 100);
+    assert.ok(item.rank >= 1);
+  });
 });

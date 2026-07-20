@@ -100,3 +100,35 @@ test("long and repeated arrays are deduplicated and bounded", () => {
   assert.deepEqual(result.preferredGenres, ["Action", "RPG", "Puzzle", "Indie", "Racing", "Sports"]);
   assert.deepEqual(result.referenceGames, ["A", "B", "C", "D", "E"]);
 });
+
+test("model output cannot invent a game the user never mentioned", () => {
+  const result = normalizeChatResponse({
+    status: "ready",
+    assistantMessage: "Understood",
+    intent: { ...emptyIntent(), desiredExperiences: ["story"], referenceGames: ["The Witcher 3"], confidence: 0.95 },
+  }, [user("I want a strong story")]);
+
+  assert.deepEqual(result.intent.referenceGames, []);
+});
+
+test("an explicitly mentioned reference game survives model normalization", () => {
+  const result = normalizeChatResponse({
+    status: "ready",
+    assistantMessage: "Understood",
+    intent: { ...emptyIntent(), desiredExperiences: ["story"], referenceGames: ["The Witcher 3"], confidence: 0.9 },
+  }, [user("I want a story like The Witcher 3")]);
+
+  assert.deepEqual(result.intent.referenceGames, ["The Witcher 3"]);
+});
+
+test("a deterministic explicit exclusion overrides a conflicting model preference", () => {
+  const result = normalizeChatResponse({
+    status: "ready",
+    assistantMessage: "Understood",
+    intent: { ...emptyIntent(), preferredGenres: ["Horror", "RPG"], desiredExperiences: ["story"], confidence: 0.9 },
+  }, [user("I want an RPG story but no horror")]);
+
+  assert.ok(result.intent.avoidedGenres.includes("Horror"));
+  assert.ok(!result.intent.preferredGenres.includes("Horror"));
+  assert.ok(result.intent.preferredGenres.includes("RPG"));
+});

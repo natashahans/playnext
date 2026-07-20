@@ -21,7 +21,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
 import AddRecommendedGameButton from "@/components/recommendations/AddRecommendedGameButton";
-import { scoreGames } from "@/lib/recommendationEngine";
+import { assessRecommendationDecision, scoreGames } from "@/lib/recommendationEngine";
 import type { RawgGame } from "@/lib/rawg";
 import type {
   FeedbackGameSnapshot,
@@ -68,7 +68,7 @@ type FeedbackRow = {
 type HistoryRow = {
   game_id: string;
   created_at: string;
-  games: Relation<{ rawg_id: number | null }>;
+  games: Relation<{ rawg_id: number | null; genres: string[] | null }>;
 };
 
 const promptSuggestions = [
@@ -213,7 +213,7 @@ export default function RecommendPage() {
             .maybeSingle(),
           supabase
             .from("recommendations")
-            .select("game_id, created_at, games ( rawg_id )")
+            .select("game_id, created_at, games ( rawg_id, genres )")
             .eq("user_id", userData.user.id)
             .order("created_at", { ascending: false })
             .limit(50),
@@ -256,6 +256,7 @@ export default function RecommendPage() {
         game_id: item.game_id,
         rawg_id: one(item.games)?.rawg_id ?? null,
         created_at: item.created_at,
+        genres: one(item.games)?.genres ?? [],
       }));
 
       let candidateGames = collectionGames;
@@ -287,6 +288,8 @@ export default function RecommendPage() {
           background_image: game.background_image,
           released: game.released,
           rating: game.rating,
+          ratings_count: game.ratings_count ?? null,
+          metacritic: game.metacritic ?? null,
           genres: game.genres.map((genre) => genre.name),
           platforms: game.platforms?.map((item) => item.platform.name) ?? [],
           playtime: game.playtime,
@@ -309,6 +312,16 @@ export default function RecommendPage() {
         preferences,
         previousRecommendations
       );
+      const assessment = assessRecommendationDecision(scoredGames, intent);
+      const userTurnCount = conversation.filter((message) => message.role === "user").length;
+
+      if (assessment.shouldClarify && userTurnCount < 2 && assessment.question) {
+        setMessages((current) => [...current, createMessage("assistant", assessment.question!)]);
+        setRecommendedGame(null);
+        setRecommendationId(null);
+        setEvaluatedCount(candidateGames.length);
+        return;
+      }
       let bestGame = scoredGames.find((game) => game.isEligible);
 
       if (!bestGame) {
@@ -369,7 +382,7 @@ export default function RecommendPage() {
         ...current,
         createMessage(
           "assistant",
-          `I evaluated ${candidateGames.length} ${mode === "collection" ? "games from your collection" : "new discoveries outside your collection"} using your live context, saved preferences, previous feedback and recommendation history. ${bestGame.title} is the strongest ${bestGame.confidenceBand === "low" ? "provisional " : ""}match.`
+          `I evaluated ${candidateGames.length} ${mode === "collection" ? "games from your collection" : "new discoveries outside your collection"} using your live context, saved preferences, previous feedback and recommendation history. ${bestGame.title} is the strongest ${bestGame.confidenceBand === "low" ? "provisional " : ""}match with ${bestGame.selectionConfidence}% decision confidence.`
         ),
       ]);
     } finally {
@@ -680,6 +693,11 @@ export default function RecommendPage() {
               <Sparkles size={18} aria-hidden="true" />
               <p>{recommendedGame.explanation}</p>
             </div>
+
+            <p className="ai-decision-confidence">
+              Decision confidence: <strong>{recommendedGame.selectionConfidence}%</strong>
+              {recommendedGame.scoreMargin > 0 ? ` · ${recommendedGame.scoreMargin}-point lead over the next eligible match` : " · only one eligible option was available"}
+            </p>
 
             <div className="ai-match-reasons">
               {recommendedGame.matchReasons.slice(0, 3).map((reason) => (

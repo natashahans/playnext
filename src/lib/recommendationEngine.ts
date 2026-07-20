@@ -8,6 +8,27 @@ import type {
   ScoredGame,
   UserPreferences,
 } from "./recommendation/types";
+import {
+  EXPERIENCE_PRIMARY_SIGNALS,
+  EXPERIENCE_SIGNALS,
+  FEEDBACK_NOTE_SIGNALS,
+  HIGH_ENERGY_SIGNALS,
+  LOW_ENERGY_SIGNALS,
+  clamp,
+  isLongForm,
+  isShortSessionFriendly,
+  looksDifficult,
+  matchesSignal,
+  normalizeSignal,
+  overlap,
+  unique,
+} from "./recommendation/signals.ts";
+import {
+  calibratedScore,
+  selectionConfidence,
+} from "./recommendation/assessment.ts";
+
+export { assessRecommendationDecision } from "./recommendation/assessment.ts";
 
 type Evaluation = {
   points: number;
@@ -25,64 +46,6 @@ type Eligibility = {
 const DAY_MS = 86_400_000;
 const SCORE_BASELINE = 42;
 
-const EXPERIENCE_SIGNALS: Record<string, string[]> = {
-  relaxing: ["casual", "simulation", "puzzle", "family", "cozy", "relaxing", "peaceful", "wholesome", "meditative"],
-  story: ["adventure", "rpg", "story rich", "narrative", "choices matter", "visual novel", "singleplayer"],
-  action: ["action", "shooter", "fighting", "hack and slash", "combat", "fast paced"],
-  exploration: ["adventure", "open world", "exploration", "walking simulator", "metroidvania"],
-  challenge: ["difficult", "souls like", "hardcore", "roguelike", "roguelite", "precision platformer"],
-  social: ["multiplayer", "co op", "online co op", "local co op", "party"],
-  creative: ["sandbox", "building", "crafting", "level editor", "simulation"],
-  strategic: ["strategy", "tactical", "turn based", "card", "management"],
-  immersive: ["atmospheric", "open world", "rpg", "story rich", "exploration", "first person"],
-  funny: ["comedy", "funny", "parody", "satire", "family"],
-  scary: ["horror", "survival horror", "psychological horror", "dark", "creepy", "lovecraftian"],
-};
-
-// Broad genre signals establish relevance. These narrower signals distinguish a
-// game that merely overlaps with an experience from one built around it.
-const EXPERIENCE_PRIMARY_SIGNALS: Record<string, string[]> = {
-  relaxing: ["cozy", "relaxing", "peaceful", "wholesome", "meditative"],
-  story: ["story rich", "narrative", "choices matter", "visual novel"],
-  action: ["action", "shooter", "fighting", "hack and slash", "combat", "fast paced"],
-  exploration: ["open world", "exploration", "walking simulator", "metroidvania"],
-  challenge: ["difficult", "souls like", "hardcore", "precision platformer", "permadeath"],
-  social: ["multiplayer", "co op", "online co op", "local co op", "party"],
-  creative: ["sandbox", "building", "crafting", "level editor"],
-  strategic: ["strategy", "tactical", "turn based", "card", "management"],
-  immersive: ["atmospheric", "open world", "first person"],
-  funny: ["comedy", "funny", "parody", "satire"],
-  scary: ["horror", "survival horror", "psychological horror", "creepy", "lovecraftian"],
-};
-
-const SHORT_SESSION_SIGNALS = [
-  "arcade", "casual", "puzzle", "platformer", "racing", "sports", "fighting", "roguelike", "roguelite", "card", "match 3",
-];
-const LONG_SESSION_SIGNALS = [
-  "rpg", "open world", "strategy", "simulation", "management", "grand strategy", "4x", "massively multiplayer",
-];
-const DIFFICULT_SIGNALS = [
-  "difficult", "souls like", "hardcore", "roguelike", "roguelite", "precision platformer", "permadeath",
-];
-const LOW_ENERGY_SIGNALS = [
-  "casual", "puzzle", "simulation", "turn based", "story rich", "visual novel", "walking simulator", "cozy", "relaxing",
-];
-const HIGH_ENERGY_SIGNALS = [
-  "action", "shooter", "fighting", "racing", "hack and slash", "fast paced", "combat",
-];
-
-function normalize(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function unique(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean)));
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
 function validAgeInDays(createdAt: string | null | undefined, now: number) {
   if (!createdAt) return Number.POSITIVE_INFINITY;
   const timestamp = new Date(createdAt).getTime();
@@ -98,39 +61,14 @@ function isSameGame(
     (game.rawg_id != null && reference.rawg_id != null && reference.rawg_id === game.rawg_id);
 }
 
-function gameSignals(game: Pick<RecommendationGame, "genres" | "tags">) {
-  return [...(game.genres ?? []), ...(game.tags ?? [])].map(normalize).filter(Boolean);
-}
-
-function matchesSignal(game: Pick<RecommendationGame, "genres" | "tags">, signals: string[]) {
-  const values = gameSignals(game);
-  return signals.some((signal) => {
-    const target = normalize(signal);
-    return values.some((value) => value === target || value.includes(target) || target.includes(value));
-  });
-}
-
-function overlap(values: string[] | null | undefined, targets: string[] | null | undefined) {
-  if (!values?.length || !targets?.length) return [];
-  const normalizedTargets = targets.map(normalize).filter(Boolean);
-  return values.filter((value) => {
-    const normalizedValue = normalize(value);
-    return normalizedTargets.some((target) =>
-      normalizedValue === target ||
-      (Math.min(normalizedValue.length, target.length) >= 4 &&
-        (normalizedValue.includes(target) || target.includes(normalizedValue)))
-    );
-  });
-}
-
 function matchingGameTargets(game: RecommendationGame, targets: string[] | null | undefined) {
   return (targets ?? []).filter((target) => matchesSignal(game, [target]));
 }
 
 function isDirectReference(game: RecommendationGame, intent: ExtractedIntent) {
-  const title = normalize(game.title);
+  const title = normalizeSignal(game.title);
   return intent.referenceGames.some((reference) => {
-    const normalizedReference = normalize(reference);
+    const normalizedReference = normalizeSignal(reference);
     return normalizedReference.length >= 3 &&
       (title === normalizedReference || title.includes(normalizedReference) || normalizedReference.includes(title));
   });
@@ -152,19 +90,6 @@ function cappedEvaluation(
     reasons: unique(reasons),
     cautions: unique(cautions),
   };
-}
-
-function isShortSessionFriendly(game: RecommendationGame) {
-  return matchesSignal(game, SHORT_SESSION_SIGNALS) ||
-    ((game.playtime ?? 0) > 0 && (game.playtime ?? 0) <= 12);
-}
-
-function isLongForm(game: RecommendationGame) {
-  return matchesSignal(game, LONG_SESSION_SIGNALS) || (game.playtime ?? 0) >= 35;
-}
-
-function looksDifficult(game: RecommendationGame) {
-  return matchesSignal(game, DIFFICULT_SIGNALS);
 }
 
 function evaluateEligibility(
@@ -371,8 +296,22 @@ function decayMultiplier(ageInDays: number) {
   return 0.25;
 }
 
-function feedbackGenreOverlap(game: RecommendationGame, feedback: PreviousFeedback) {
-  return overlap(game.genres, feedback.game?.genres).length > 0;
+function feedbackSimilarity(game: RecommendationGame, feedback: PreviousFeedback) {
+  if (!feedback.game) return 0;
+  const genreMatches = overlap(game.genres, feedback.game.genres).length;
+  const tagMatches = overlap(game.tags, feedback.game.tags).length;
+  const platformMatches = overlap(game.platforms, feedback.game.platforms).length;
+  return clamp(genreMatches * 0.25 + tagMatches * 0.08 + platformMatches * 0.02, 0, 1);
+}
+
+function negativeSignalsFromNote(reason: string | null | undefined) {
+  if (!reason) return [];
+  const text = normalizeSignal(reason);
+  const hasNegativeQualifier = /\b(?:less|without|avoid|no|not|too much|too many|tired of)\b/.test(text);
+  if (!hasNegativeQualifier) return [];
+  return Object.entries(FEEDBACK_NOTE_SIGNALS)
+    .filter(([label]) => text.includes(label))
+    .flatMap(([, signals]) => signals);
 }
 
 function evaluateFeedback(
@@ -417,6 +356,12 @@ function evaluateFeedback(
       points -= 30 * multiplier;
       cautions.push("you previously showed low interest in this game");
     }
+
+    const noteSignals = negativeSignalsFromNote(item.reason);
+    if (noteSignals.length > 0 && matchesSignal(game, noteSignals)) {
+      points -= 7 * multiplier;
+      cautions.push("your feedback note previously asked for less of this kind of experience");
+    }
   });
 
   feedback
@@ -424,14 +369,17 @@ function evaluateFeedback(
     .slice(0, 50)
     .forEach((item) => {
       const multiplier = decayMultiplier(validAgeInDays(item.created_at, now));
-      if (item.feedback_type === "liked" && feedbackGenreOverlap(game, item)) points += 2 * multiplier;
+      const similarity = feedbackSimilarity(game, item);
+      if (item.feedback_type === "liked" && similarity > 0) points += Math.min(4, 4 * similarity) * multiplier;
       if (item.feedback_type === "too_long" && isLongForm(game) && intent.availableTime !== null && intent.availableTime <= 60) {
         points -= 4 * multiplier;
       }
       if (item.feedback_type === "too_difficult" && looksDifficult(game) && intent.difficultyPreference !== "hard") {
         points -= 5 * multiplier;
       }
-      if (item.feedback_type === "not_interested" && feedbackGenreOverlap(game, item)) points -= 2 * multiplier;
+      if (item.feedback_type === "not_interested" && similarity > 0) points -= Math.min(5, 5 * similarity) * multiplier;
+      const noteSignals = negativeSignalsFromNote(item.reason);
+      if (noteSignals.length > 0 && matchesSignal(game, noteSignals)) points -= 3 * multiplier;
     });
 
   if (points > 0) reasons.push("it benefits from patterns in your previous feedback");
@@ -465,6 +413,12 @@ function evaluateHistory(
     else points -= 1;
   });
 
+  const recentGenreFatigue = history
+    .filter((item) => !isSameGame(game, item) && validAgeInDays(item.created_at, now) < 7)
+    .slice(0, 8)
+    .reduce((total, item) => total + Math.min(2, overlap(game.genres, item.genres).length), 0);
+  points -= Math.min(6, recentGenreFatigue);
+
   if (game.status === "completed") points -= 15;
   if (game.status === "playing") points += 5;
 
@@ -475,25 +429,39 @@ function evaluateHistory(
     "Variety and recency",
     "Recent repeats are strongly reduced while older suggestions gradually become eligible again",
     points > 0 ? ["it is already in progress, making it easy to resume"] : [],
-    points < 0 ? ["it was reduced to keep recommendations varied"] : []
+    points < 0 ? [recentGenreFatigue > 0
+      ? "recent recommendations in similar genres slightly reduced it to preserve variety"
+      : "it was reduced to keep recommendations varied"] : []
   );
 }
 
 function evaluateQuality(game: RecommendationGame): Evaluation {
   const rating = game.rating ?? 0;
-  let points = 0;
-  if (rating >= 4.5) points = 7;
-  else if (rating >= 4.0) points = 5;
-  else if (rating >= 3.5) points = 3;
-  else if (rating > 0 && rating < 2.5) points = -2;
+  const ratingCount = game.ratings_count ?? null;
+  const reliability = ratingCount === null
+    ? 0.65
+    : clamp(Math.log10(Math.max(1, ratingCount) + 1) / 3.5, 0.2, 1);
+  let ratingPoints = 0;
+  if (rating >= 4.5) ratingPoints = 7;
+  else if (rating >= 4.0) ratingPoints = 5;
+  else if (rating >= 3.5) ratingPoints = 3;
+  else if (rating > 0 && rating < 2.5) ratingPoints = -2;
+
+  let criticPoints = 0;
+  if ((game.metacritic ?? 0) >= 85) criticPoints = 2;
+  else if ((game.metacritic ?? 0) >= 75) criticPoints = 1;
+  else if ((game.metacritic ?? 100) < 50) criticPoints = -1;
+  const points = ratingPoints * reliability + criticPoints;
 
   return cappedEvaluation(
     points,
     -3,
     7,
     "Quality signal",
-    "Public rating is deliberately limited to a tie-breaking role",
-    points >= 5 ? ["it has a particularly strong player rating"] : [],
+    ratingCount === null
+      ? "Public rating is a limited tie-breaker because vote-count reliability is unavailable"
+      : `Public rating is reliability-weighted using ${ratingCount.toLocaleString()} recorded ratings`,
+    points >= 5 ? ["it has a strong, well-supported public quality signal"] : [],
     []
   );
 }
@@ -505,39 +473,6 @@ function toBreakdown(category: ScoreBreakdownItem["category"], evaluation: Evalu
     points: evaluation.points,
     detail: evaluation.detail,
   };
-}
-
-function evidenceCount(intent: ExtractedIntent) {
-  return [
-    intent.availableTime !== null,
-    intent.mood !== "unknown",
-    intent.energyLevel !== "unknown",
-    intent.desiredExperiences.length > 0,
-    intent.preferredGenres.length > 0,
-    intent.avoidedGenres.length > 0,
-    intent.difficultyPreference !== "unknown",
-    intent.sessionPace !== "unknown",
-    intent.multiplayerPreference !== "unknown" && intent.multiplayerPreference !== "either",
-    intent.referenceGames.length > 0,
-  ].filter(Boolean).length;
-}
-
-function calibratedScore(rawScore: number, intent: ExtractedIntent, eligible: boolean) {
-  const evidence = evidenceCount(intent);
-  const confidence = clamp(intent.confidence, 0, 1);
-  let ceiling = 72;
-  if (evidence >= 2 && confidence >= 0.45) ceiling = 84;
-  if (evidence >= 4 && confidence >= 0.7) ceiling = 94;
-  if (evidence >= 6 && confidence >= 0.85) ceiling = 98;
-  if (!eligible) ceiling = 20;
-  return clamp(Math.round(rawScore), 0, ceiling);
-}
-
-function confidenceBand(score: number, intent: ExtractedIntent): ScoredGame["confidenceBand"] {
-  const evidence = evidenceCount(intent);
-  if (score >= 78 && evidence >= 3 && intent.confidence >= 0.65) return "high";
-  if (score >= 58 && evidence >= 1) return "medium";
-  return "low";
 }
 
 function deduplicateGames(games: RecommendationGame[]) {
@@ -560,7 +495,7 @@ export function scoreGames(
 ): ScoredGame[] {
   const now = options.now ?? Date.now();
 
-  return deduplicateGames(games)
+  const sorted = deduplicateGames(games)
     .map((game) => {
       const eligibility = evaluateEligibility(game, intent, previousFeedback);
       const context = evaluateLiveContext(game, intent);
@@ -580,7 +515,10 @@ export function scoreGames(
       return {
         ...game,
         score,
-        confidenceBand: confidenceBand(score, intent),
+        confidenceBand: "low" as const,
+        selectionConfidence: 0,
+        scoreMargin: 0,
+        rank: 0,
         isEligible: eligibility.eligible,
         exclusionReasons: eligibility.reasons,
         scoreBreakdown: [
@@ -592,12 +530,7 @@ export function scoreGames(
         ],
         matchReasons,
         cautions,
-        explanation: buildExplanation({
-          reasons: matchReasons,
-          cautions,
-          confidenceBand: confidenceBand(score, intent),
-          source: game.source,
-        }),
+        explanation: "",
       };
     })
     .sort((a, b) =>
@@ -606,4 +539,28 @@ export function scoreGames(
       (b.rating ?? 0) - (a.rating ?? 0) ||
       a.title.localeCompare(b.title)
     );
+
+  const eligible = sorted.filter((game) => game.isEligible);
+  return sorted.map((game) => {
+    const eligibleIndex = eligible.findIndex((item) => item.id === game.id);
+    const next = eligibleIndex >= 0 ? eligible[eligibleIndex + 1] : undefined;
+    const margin = game.isEligible && next ? Math.max(0, game.score - next.score) : 0;
+    const confidence = game.isEligible
+      ? selectionConfidence(game.score, margin, intent, eligible.length)
+      : 0;
+    const band = confidence >= 72 ? "high" : confidence >= 45 ? "medium" : "low";
+    return {
+      ...game,
+      rank: eligibleIndex >= 0 ? eligibleIndex + 1 : sorted.length,
+      scoreMargin: margin,
+      selectionConfidence: confidence,
+      confidenceBand: band,
+      explanation: buildExplanation({
+        reasons: game.matchReasons,
+        cautions: game.cautions,
+        confidenceBand: band,
+        source: game.source,
+      }),
+    };
+  });
 }
