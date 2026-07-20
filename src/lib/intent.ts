@@ -124,6 +124,31 @@ function includesAny(text: string, words: string[]) {
   return words.some((word) => text.includes(word));
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractAvoidedGenres(text: string) {
+  const avoided = new Set<string>();
+  const exclusionClauses = text.matchAll(
+    /\b(?:not|no|avoid|without|except|anything but)\s+(?:any\s+)?([^.!?;]+)/gi
+  );
+
+  for (const match of exclusionClauses) {
+    // Stop when the sentence changes direction so that "no horror, but I want RPG"
+    // does not accidentally treat RPG as an exclusion.
+    const clause = match[1].split(/\b(?:but|although|though|because|while|instead)\b/i)[0];
+
+    for (const genre of KNOWN_GENRES) {
+      if (new RegExp(`\\b${escapeRegExp(genre)}\\b`, "i").test(clause)) {
+        avoided.add(genre);
+      }
+    }
+  }
+
+  return Array.from(avoided);
+}
+
 export function fallbackIntent(messages: IntentChatMessage[]): IntentChatResponse {
   const userMessages = messages.filter((message) => message.role === "user");
   const text = userMessages.map((message) => message.content).join(" ").toLowerCase();
@@ -177,11 +202,7 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
   else if (includesAny(text, ["multiplayer", "co-op", "with friends"])) intent.multiplayerPreference = "multiplayer";
   else if (includesAny(text, ["either solo or multiplayer", "either is fine", "no preference"])) intent.multiplayerPreference = "either";
 
-  intent.avoidedGenres = KNOWN_GENRES.filter((genre) => {
-    const escaped = genre.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const avoidance = new RegExp(`(?:not|no|avoid|without|except|anything but)\\s+(?:any\\s+)?${escaped}\\b`, "i");
-    return avoidance.test(text);
-  }).slice(0, 6);
+  intent.avoidedGenres = extractAvoidedGenres(text).slice(0, 6);
 
   const avoided = new Set(intent.avoidedGenres.map((genre) => genre.toLowerCase()));
   intent.preferredGenres = KNOWN_GENRES.filter((genre) => {

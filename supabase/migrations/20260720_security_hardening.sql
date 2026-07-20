@@ -160,7 +160,16 @@ revoke all on table public.recommendation_sessions from anon;
 revoke all on table public.recommendations from anon;
 revoke all on table public.feedback from anon;
 
-revoke insert, update, delete on table public.games from authenticated;
+-- GRANT only adds privileges; it does not remove broad privileges left by an
+-- earlier setup. Reset authenticated access before granting the exact minimum.
+revoke all on table public.profiles from authenticated;
+revoke all on table public.games from authenticated;
+revoke all on table public.user_games from authenticated;
+revoke all on table public.user_preferences from authenticated;
+revoke all on table public.recommendation_sessions from authenticated;
+revoke all on table public.recommendations from authenticated;
+revoke all on table public.feedback from authenticated;
+
 grant select on table public.games to authenticated;
 grant select, insert, update on table public.profiles to authenticated;
 grant select, insert, update, delete on table public.user_games to authenticated;

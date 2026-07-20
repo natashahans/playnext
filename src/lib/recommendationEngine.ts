@@ -39,6 +39,22 @@ const EXPERIENCE_SIGNALS: Record<string, string[]> = {
   scary: ["horror", "survival horror", "psychological horror", "dark", "creepy", "lovecraftian"],
 };
 
+// Broad genre signals establish relevance. These narrower signals distinguish a
+// game that merely overlaps with an experience from one built around it.
+const EXPERIENCE_PRIMARY_SIGNALS: Record<string, string[]> = {
+  relaxing: ["cozy", "relaxing", "peaceful", "wholesome", "meditative"],
+  story: ["story rich", "narrative", "choices matter", "visual novel"],
+  action: ["action", "shooter", "fighting", "hack and slash", "combat", "fast paced"],
+  exploration: ["open world", "exploration", "walking simulator", "metroidvania"],
+  challenge: ["difficult", "souls like", "hardcore", "precision platformer", "permadeath"],
+  social: ["multiplayer", "co op", "online co op", "local co op", "party"],
+  creative: ["sandbox", "building", "crafting", "level editor"],
+  strategic: ["strategy", "tactical", "turn based", "card", "management"],
+  immersive: ["atmospheric", "open world", "first person"],
+  funny: ["comedy", "funny", "parody", "satire"],
+  scary: ["horror", "survival horror", "psychological horror", "creepy", "lovecraftian"],
+};
+
 const SHORT_SESSION_SIGNALS = [
   "arcade", "casual", "puzzle", "platformer", "racing", "sports", "fighting", "roguelike", "roguelite", "card", "match 3",
 ];
@@ -223,6 +239,7 @@ function evaluateLiveContext(game: RecommendationGame, intent: ExtractedIntent):
     const signals = EXPERIENCE_SIGNALS[experience];
     if (signals && matchesSignal(game, signals)) {
       points += 9;
+      if (matchesSignal(game, EXPERIENCE_PRIMARY_SIGNALS[experience] ?? [])) points += 3;
       reasons.push(`it supports the ${experience} experience you asked for`);
     }
   });
