@@ -38,6 +38,7 @@ async function rawgFetch<T>(
 
   const response = await fetch(url, {
     next: { revalidate: 60 * 30 },
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {
@@ -175,11 +176,19 @@ export async function getRecommendationCandidates({
   if (genres.length > 0) contextualParams.genres = genres.join(",");
   if (platforms.length > 0) contextualParams.platforms = platforms.join(",");
 
-  const [contextual, popular, acclaimed] = await Promise.all([
+  const candidateRequests = await Promise.allSettled([
     getGames(contextualParams),
     getGames({ dates: `${fourYearsAgo},${today}`, ordering: "-added", page_size: 30 }),
     getGames({ metacritic: "78,100", ordering: "-metacritic", page_size: 30 }),
   ]);
+
+  const [contextual = [], popular = [], acclaimed = []] = candidateRequests.map((result) =>
+    result.status === "fulfilled" ? result.value : []
+  );
+
+  if (candidateRequests.every((result) => result.status === "rejected")) {
+    throw new Error("Every RAWG recommendation candidate request failed.");
+  }
 
   const excluded = new Set(excludedRawgIds);
   const seen = new Set<number>();

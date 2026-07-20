@@ -54,6 +54,9 @@ export type ScoreBreakdownItem = {
 
 export type ScoredGame = RecommendationGame & {
   score: number;
+  confidenceBand: "low" | "medium" | "high";
+  isEligible: boolean;
+  exclusionReasons: string[];
   explanation: string;
   scoreBreakdown: ScoreBreakdownItem[];
   matchReasons: string[];

@@ -112,6 +112,7 @@ function extractMinutes(text: string) {
   if (hourMatch) return normalizeMinutes(Number(hourMatch[1]) * 60);
 
   if (/half\s+(?:an?\s+)?hour/i.test(text)) return 30;
+  if (/\b(?:an|one)\s+hour\b/i.test(text)) return 60;
   if (/couple\s+of\s+hours/i.test(text)) return 120;
   if (/few\s+hours/i.test(text)) return 180;
   if (/all\s+evening/i.test(text)) return 240;
@@ -126,6 +127,7 @@ function includesAny(text: string, words: string[]) {
 export function fallbackIntent(messages: IntentChatMessage[]): IntentChatResponse {
   const userMessages = messages.filter((message) => message.role === "user");
   const text = userMessages.map((message) => message.content).join(" ").toLowerCase();
+  const latestText = userMessages.at(-1)?.content.toLowerCase() ?? text;
   const intent = emptyIntent();
 
   intent.availableTime = extractMinutes(text);
@@ -136,6 +138,7 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
   else if (includesAny(text, ["sad", "down", "low mood"])) intent.mood = "sad";
   else if (includesAny(text, ["focused", "concentrate"])) intent.mood = "focused";
   else if (includesAny(text, ["restless", "bored"])) intent.mood = "restless";
+  else if (includesAny(text, ["social", "with people", "with friends"])) intent.mood = "social";
   else if (includesAny(text, ["calm", "chill", "peaceful"])) intent.mood = "calm";
 
   if (includesAny(text, ["low energy", "tired", "exhausted", "drained"])) intent.energyLevel = "low";
@@ -168,17 +171,38 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
 
   if (includesAny(text, ["fast", "fast-paced", "quick action"])) intent.sessionPace = "fast";
   else if (includesAny(text, ["slow", "slow-paced", "take my time"])) intent.sessionPace = "slow";
+  else if (includesAny(text, ["balanced pace", "medium pace"])) intent.sessionPace = "balanced";
 
   if (includesAny(text, ["solo", "single-player", "single player", "alone"])) intent.multiplayerPreference = "solo";
   else if (includesAny(text, ["multiplayer", "co-op", "with friends"])) intent.multiplayerPreference = "multiplayer";
+  else if (includesAny(text, ["either solo or multiplayer", "either is fine", "no preference"])) intent.multiplayerPreference = "either";
 
-  intent.preferredGenres = KNOWN_GENRES.filter((genre) => text.includes(genre.toLowerCase())).slice(0, 6);
+  intent.avoidedGenres = KNOWN_GENRES.filter((genre) => {
+    const escaped = genre.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const avoidance = new RegExp(`(?:not|no|avoid|without|except|anything but)\\s+(?:any\\s+)?${escaped}\\b`, "i");
+    return avoidance.test(text);
+  }).slice(0, 6);
+
+  const avoided = new Set(intent.avoidedGenres.map((genre) => genre.toLowerCase()));
+  intent.preferredGenres = KNOWN_GENRES.filter((genre) => {
+    const normalizedGenre = genre.toLowerCase();
+    return text.includes(normalizedGenre) && !avoided.has(normalizedGenre);
+  }).slice(0, 6);
+
+  // The latest turn can explicitly correct a preference captured earlier.
+  intent.avoidedGenres.forEach((genre) => {
+    if (latestText.includes(`actually ${genre.toLowerCase()}`) || latestText.includes(`i want ${genre.toLowerCase()}`)) {
+      intent.avoidedGenres = intent.avoidedGenres.filter((item) => item !== genre);
+      if (!intent.preferredGenres.includes(genre)) intent.preferredGenres.push(genre);
+    }
+  });
   const signalCount = [
     intent.availableTime !== null,
     intent.mood !== "unknown",
     intent.energyLevel !== "unknown",
     intent.desiredExperiences.length > 0,
     intent.preferredGenres.length > 0,
+    intent.avoidedGenres.length > 0,
     intent.difficultyPreference !== "unknown",
   ].filter(Boolean).length;
 

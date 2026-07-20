@@ -223,7 +223,9 @@ export default function RecommendPage() {
                 games ( id, rawg_id, genres, platforms, playtime, tags )
               )
             `)
-            .eq("user_id", userData.user.id),
+            .eq("user_id", userData.user.id)
+            .order("created_at", { ascending: false })
+            .limit(100),
           supabase
             .from("user_preferences")
             .select("favorite_genres, preferred_platforms, play_style, difficulty_preference, session_length_preference")
@@ -234,11 +236,12 @@ export default function RecommendPage() {
             .select("game_id, created_at, games ( rawg_id )")
             .eq("user_id", userData.user.id)
             .order("created_at", { ascending: false })
-            .limit(20),
+            .limit(50),
         ]);
 
       if (collectionResult.error) throw collectionResult.error;
       if (feedbackResult.error) throw feedbackResult.error;
+      if (preferencesResult.error) throw preferencesResult.error;
       if (historyResult.error) throw historyResult.error;
 
       const collectionRows = (collectionResult.data ?? []) as unknown as UserGameRow[];
@@ -326,9 +329,11 @@ export default function RecommendPage() {
         preferences,
         previousRecommendations
       );
-      let bestGame = scoredGames[0];
+      let bestGame = scoredGames.find((game) => game.isEligible);
 
-      if (!bestGame) throw new Error("PlayNext could not find a suitable game for this session.");
+      if (!bestGame) {
+        throw new Error("No game safely matched the current request. Try removing an exclusion or broadening the session description.");
+      }
 
       if (mode === "discovery") {
         const { data: savedGame, error: saveGameError } = await supabase
@@ -401,7 +406,7 @@ export default function RecommendPage() {
         ...current,
         createMessage(
           "assistant",
-          `I evaluated ${candidateGames.length} ${mode === "collection" ? "games from your collection" : "new discoveries outside your collection"} using your live context, saved preferences, previous feedback and recommendation history. ${bestGame.title} is the strongest match.`
+          `I evaluated ${candidateGames.length} ${mode === "collection" ? "games from your collection" : "new discoveries outside your collection"} using your live context, saved preferences, previous feedback and recommendation history. ${bestGame.title} is the strongest ${bestGame.confidenceBand === "low" ? "provisional " : ""}match.`
         ),
       ]);
     } finally {
