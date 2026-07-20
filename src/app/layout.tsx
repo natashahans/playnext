@@ -5,6 +5,7 @@ import "./add-games.css";
 import "./dashboard-home.css";
 import "./decide-ai.css";
 import "./library-pages.css";
+import "./product-polish.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

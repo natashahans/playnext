@@ -13,36 +13,41 @@ import {
 import AuthLogo from "@/components/auth/AuthLogo";
 
 const navItems = [
-  { href: "/dashboard", label: "Home", shortLabel: "Home", icon: Home },
+  { href: "/dashboard", label: "Home", shortLabel: "Home", icon: Home, mobile: true },
   {
     href: "/dashboard/collection",
     label: "My collection",
     shortLabel: "Library",
     icon: Library,
+    mobile: true,
   },
   {
     href: "/dashboard/search",
     label: "Add games",
     shortLabel: "Add",
     icon: Search,
+    mobile: true,
   },
   {
     href: "/dashboard/recommend",
     label: "Decide",
     shortLabel: "Decide",
     icon: Compass,
+    mobile: true,
   },
   {
     href: "/dashboard/history",
     label: "History",
     shortLabel: "History",
     icon: Clock3,
+    mobile: true,
   },
   {
     href: "/dashboard/settings",
     label: "Settings",
     shortLabel: "Settings",
     icon: Settings,
+    mobile: false,
   },
 ];
 
@@ -89,7 +94,7 @@ export default function Sidebar() {
       </aside>
 
       <nav className="dashboard-mobile-nav" aria-label="Mobile navigation">
-        {navItems.map((item) => {
+        {navItems.filter((item) => item.mobile).map((item) => {
           const active = isActivePath(pathname, item.href);
           const Icon = item.icon;
 

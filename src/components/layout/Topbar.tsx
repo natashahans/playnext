@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Settings } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import AuthLogo from "@/components/auth/AuthLogo";
 import { supabase } from "@/lib/supabase";
 
 const pageTitles: Record<string, string> = {
@@ -38,9 +40,26 @@ export default function Topbar() {
 
   return (
     <header className="dashboard-topbar">
-      <h1 className="dashboard-page-title">{title}</h1>
+      <div className="dashboard-topbar-context">
+        <Link href="/dashboard" className="dashboard-mobile-brand" aria-label="PlayNext home">
+          <AuthLogo />
+        </Link>
+        <div>
+          <span>PlayNext</span>
+          <h1 className="dashboard-page-title">{title}</h1>
+        </div>
+      </div>
 
       <div className="dashboard-topbar-actions">
+        {pathname !== "/dashboard/settings" && (
+          <Link
+            href="/dashboard/settings"
+            className="dashboard-settings-button"
+            aria-label="Open settings"
+          >
+            <Settings size={17} aria-hidden="true" />
+          </Link>
+        )}
         <button
           type="button"
           onClick={handleLogout}

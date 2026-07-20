@@ -63,12 +63,17 @@ export default function DashboardLayout({
 
   return (
     <main className="dashboard-shell">
+      <a className="dashboard-skip-link" href="#dashboard-main-content">
+        Skip to main content
+      </a>
       <div className="dashboard-frame">
         <Sidebar />
 
         <div className="dashboard-workspace">
           <Topbar />
-          <section className="dashboard-content">{children}</section>
+          <section id="dashboard-main-content" className="dashboard-content" tabIndex={-1}>
+            {children}
+          </section>
           <footer className="dashboard-attribution">
             Game data by{" "}
             <a href="https://rawg.io" target="_blank" rel="noreferrer">

@@ -1,0 +1,714 @@
+/* ================================================================
+   PLAYNEXT — PRODUCT POLISH LAYER
+   Shared readability, hierarchy, interaction and responsive refinements.
+   Loaded last so existing page layouts keep their identity.
+   ================================================================ */
+
+:root {
+  --color-canvas: #f6f7f9;
+  --color-canvas-soft: #fafbfc;
+  --color-surface-tint: #f0f2f5;
+  --color-ink: #12151c;
+  --color-ink-soft: #343a46;
+  --color-muted: #667080;
+  --color-subtle: #8a94a3;
+  --color-border: #e1e5eb;
+  --color-border-strong: #c8cfda;
+  --color-primary: #2f5fe3;
+  --color-primary-hover: #244fc5;
+  --color-primary-soft: #eef3ff;
+  --color-primary-ring: rgba(47, 95, 227, 0.2);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 10px 28px rgba(15, 23, 42, 0.07);
+  --shadow-md: 0 22px 54px rgba(15, 23, 42, 0.1);
+}
+
+body {
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+button:active:not(:disabled),
+.pn-button:active:not(:disabled),
+.dashboard-nav-item:active,
+.dashboard-mobile-nav-item:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.dashboard-skip-link {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  z-index: 200;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px 14px;
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 720;
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+  transform: translate(-50%, -160%);
+}
+
+.dashboard-skip-link:focus {
+  transform: translate(-50%, 0);
+}
+
+/* Application shell */
+.dashboard-frame {
+  grid-template-columns: 248px minmax(0, 1fr);
+}
+
+.dashboard-sidebar {
+  padding: 22px 16px;
+  background: #101520;
+}
+
+.dashboard-brand {
+  min-height: 48px;
+  gap: 11px;
+  padding: 0 10px;
+}
+
+.dashboard-brand .auth-logo {
+  width: 34px;
+  height: 34px;
+}
+
+.dashboard-brand-name {
+  font-size: 17px;
+  font-weight: 740;
+}
+
+.dashboard-nav {
+  margin-top: 30px;
+  gap: 5px;
+}
+
+.dashboard-nav-item {
+  min-height: 46px;
+  gap: 12px;
+  border-radius: 11px;
+  padding: 0 13px;
+  color: #98a3b3;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.dashboard-nav-item svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dashboard-nav-item-active {
+  background: #202838;
+  color: #ffffff;
+}
+
+.dashboard-nav-item-active::before {
+  height: 22px;
+  background: #6f92f4;
+}
+
+.dashboard-topbar {
+  height: 68px;
+  padding: 0 clamp(22px, 3vw, 40px);
+}
+
+.dashboard-topbar-context {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.dashboard-topbar-context > div:last-child {
+  min-width: 0;
+}
+
+.dashboard-topbar-context > div:last-child > span {
+  display: none;
+  color: var(--color-subtle);
+  font-size: 10px;
+  font-weight: 740;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dashboard-page-title {
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.dashboard-mobile-brand,
+.dashboard-settings-button {
+  display: none;
+}
+
+.dashboard-settings-button,
+.dashboard-logout-button {
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  background: var(--color-surface);
+  color: var(--color-muted);
+  text-decoration: none;
+  box-shadow: var(--shadow-xs);
+}
+
+.dashboard-settings-button {
+  width: 40px;
+}
+
+.dashboard-settings-button:hover,
+.dashboard-logout-button:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  background: var(--color-canvas-soft);
+  color: var(--color-ink);
+}
+
+.dashboard-logout-button {
+  height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.dashboard-content {
+  max-width: 1540px;
+  padding: clamp(28px, 3.2vw, 48px);
+  padding-bottom: 64px;
+}
+
+/* Shared controls */
+.pn-button {
+  min-height: 44px;
+  border-radius: 11px;
+  padding: 10px 17px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pn-card {
+  border-radius: 18px;
+  box-shadow: var(--shadow-xs);
+}
+
+.pn-badge {
+  min-height: 27px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 680;
+}
+
+/* Home: tighter composition and readable supporting information. */
+.home-command-page {
+  gap: 30px;
+}
+
+.home-command-kicker,
+.home-command-section-heading > div > span,
+.home-command-panel-heading > div > span {
+  font-size: 10px;
+}
+
+.home-command-header h1 {
+  font-size: clamp(32px, 3vw, 44px);
+}
+
+.home-command-header p,
+.home-command-hero-copy > p {
+  font-size: 14px;
+}
+
+.home-command-hero {
+  min-height: 390px;
+  border-radius: 24px;
+}
+
+.home-command-hero-copy h2 {
+  font-size: clamp(44px, 5.6vw, 68px);
+}
+
+.home-command-readiness > div:last-child > span,
+.home-command-readiness-ring span,
+.home-session-copy > span,
+.home-metric-card > span {
+  font-size: 11px;
+}
+
+.home-command-readiness > div:last-child > strong {
+  font-size: 15px;
+}
+
+.home-command-readiness > div:last-child > p,
+.home-metric-card > p,
+.home-command-section-heading > a,
+.home-command-panel-heading > a,
+.home-session-card p,
+.home-recent-copy p,
+.home-last-decision p,
+.home-genre-row {
+  font-size: 12px;
+}
+
+.home-session-grid {
+  gap: 10px;
+}
+
+.home-session-card {
+  min-height: 108px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 13px;
+  padding: 16px;
+}
+
+.home-session-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.home-session-copy {
+  min-width: 0;
+}
+
+.home-session-copy > span {
+  display: block;
+  color: var(--color-primary);
+  font-weight: 740;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.home-session-copy h3 {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 710;
+}
+
+.home-session-copy p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+.home-session-arrow {
+  color: var(--color-subtle);
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.home-session-card:hover .home-session-arrow {
+  color: var(--color-primary);
+  transform: translateX(3px);
+}
+
+/* Catalogue: progressive disclosure and accurate rail controls. */
+.discover-header > div > p,
+.discover-hero-content > p,
+.discover-search input {
+  font-size: 14px;
+}
+
+.discover-eyebrow,
+.discover-featured-label,
+.discover-results-header > div > span {
+  font-size: 11px;
+}
+
+.discover-chips button,
+.discover-rail-header p,
+.discover-card-copy p,
+.discover-card-rating,
+.discover-card-view {
+  font-size: 12px;
+}
+
+.discover-chips button {
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+.discover-rail-controls button {
+  width: 40px;
+  height: 40px;
+}
+
+.discover-rail-controls button:disabled {
+  cursor: default;
+  opacity: 0.32;
+}
+
+.discover-rail:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.discover-more-categories {
+  width: 100%;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  padding: 15px 18px;
+  color: var(--color-ink-soft);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+}
+
+.discover-more-categories:hover {
+  border-color: #b9c8ee;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.discover-more-categories span,
+.discover-more-categories strong,
+.discover-more-categories small {
+  display: block;
+}
+
+.discover-more-categories strong {
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.discover-more-categories small {
+  margin-top: 3px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+/* Decide: larger conversation text and clearer controls. */
+.ai-decide-page {
+  gap: 24px;
+}
+
+.ai-decide-header h1 {
+  font-size: clamp(38px, 3.8vw, 54px);
+}
+
+.ai-chat-card,
+.ai-context-card {
+  border-radius: 20px;
+}
+
+.ai-chat-toolbar {
+  min-height: 82px;
+  padding: 16px 22px;
+}
+
+.ai-chat-identity strong {
+  font-size: 17px;
+}
+
+.ai-chat-identity p,
+.ai-chat-status,
+.ai-source-control > span,
+.ai-source-switch button {
+  font-size: 13px;
+}
+
+.ai-source-switch button {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.ai-chat-thread {
+  min-height: 390px;
+  max-height: 560px;
+  gap: 20px;
+  padding: 28px;
+}
+
+.ai-chat-thread.is-empty {
+  min-height: 330px;
+}
+
+.ai-message small,
+.ai-engine-progress p,
+.ai-chat-composer > div span,
+.ai-context-heading small,
+.ai-context-grid span,
+.ai-context-source-card span {
+  font-size: 11px;
+}
+
+.ai-message p,
+.ai-chat-composer textarea,
+.ai-context-heading p,
+.ai-context-empty p,
+.ai-context-grid strong,
+.ai-context-source-card strong,
+.ai-recommendation-explanation p,
+.ai-match-reasons span {
+  font-size: 14px;
+}
+
+.ai-chat-suggestions button {
+  min-height: 38px;
+  font-size: 12px;
+}
+
+.ai-chat-composer textarea {
+  min-height: 84px;
+}
+
+.ai-match-score {
+  width: 82px;
+  height: 82px;
+}
+
+.ai-match-score strong {
+  font-size: 28px;
+}
+
+.ai-match-score span {
+  max-width: 58px;
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+/* Library pages: supporting copy should never feel like legal fine print. */
+.lib-kicker,
+.history-source,
+.settings-profile-card > span,
+.settings-v2-heading small {
+  font-size: 11px;
+}
+
+.lib-page-header p,
+.collection-v2-meta,
+.history-v2-content blockquote,
+.history-v2-explanation,
+.settings-v2-heading p,
+.settings-profile-card > p,
+.settings-profile-summary span {
+  font-size: 13px;
+}
+
+.collection-v2-actions > a,
+.collection-v2-actions > .game-remove-button,
+.collection-status-control > span,
+.collection-status-control select,
+.history-v2-footer a,
+.history-v2-details summary,
+.history-feedback,
+.settings-v2-chip-grid button,
+.settings-platform-grid strong,
+.settings-strength > div {
+  font-size: 12px;
+}
+
+.history-v2-details article p,
+.settings-strength p,
+.settings-principle-card p,
+.settings-platform-grid small {
+  font-size: 12px;
+}
+
+/* Consistent keyboard focus on the most important custom controls. */
+.home-session-card:focus-visible,
+.home-recent-row:focus-visible,
+.dashboard-nav-item:focus-visible,
+.dashboard-mobile-nav-item:focus-visible,
+.dashboard-settings-button:focus-visible,
+.ai-source-switch button:focus-visible,
+.ai-chat-suggestions button:focus-visible,
+.settings-v2-chip-grid button:focus-visible,
+.settings-platform-grid button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-frame {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .dashboard-content {
+    padding: 30px;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-topbar {
+    height: 64px;
+    padding: 0 18px;
+  }
+
+  .dashboard-mobile-brand {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    text-decoration: none;
+  }
+
+  .dashboard-mobile-brand .auth-logo {
+    width: 34px;
+    height: 34px;
+    margin: 0;
+    border-radius: 10px;
+  }
+
+  .dashboard-topbar-context > div:last-child > span {
+    display: block;
+  }
+
+  .dashboard-page-title {
+    margin-top: 1px;
+    font-size: 14px;
+  }
+
+  .dashboard-settings-button {
+    display: inline-flex;
+  }
+
+  .dashboard-content {
+    padding: 26px 20px 104px;
+  }
+
+  .dashboard-mobile-nav {
+    height: 72px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border-radius: 20px;
+    padding: 8px;
+  }
+
+  .dashboard-mobile-nav-item {
+    height: 56px;
+    gap: 5px;
+    border-radius: 13px;
+    font-size: 10px;
+  }
+
+  .dashboard-mobile-nav-item svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .home-command-hero {
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 620px) {
+  .dashboard-topbar-actions {
+    gap: 7px;
+  }
+
+  .dashboard-settings-button,
+  .dashboard-logout-button {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+
+  .dashboard-logout-label {
+    display: none;
+  }
+
+  .dashboard-content {
+    padding: 22px 16px 100px;
+  }
+
+  .home-command-page,
+  .ai-decide-page,
+  .lib-page {
+    gap: 22px;
+  }
+
+  .home-command-header h1,
+  .lib-page-header h1 {
+    font-size: 31px;
+  }
+
+  .home-command-header p,
+  .lib-page-header p,
+  .ai-decide-header p {
+    font-size: 14px;
+  }
+
+  .home-command-hero {
+    min-height: 420px;
+    border-radius: 20px;
+  }
+
+  .home-command-hero-copy {
+    padding: 28px 22px;
+  }
+
+  .home-command-hero-copy h2 {
+    font-size: clamp(39px, 12vw, 52px);
+  }
+
+  .ai-decide-header h1 {
+    font-size: 38px;
+  }
+
+  .ai-chat-toolbar {
+    padding: 15px 16px;
+  }
+
+  .ai-chat-thread,
+  .ai-chat-thread.is-empty {
+    min-height: 360px;
+    padding: 20px 16px;
+  }
+
+  .ai-message {
+    max-width: 94%;
+  }
+
+  .ai-message p {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .ai-chat-composer-wrap {
+    padding: 14px;
+  }
+
+  .ai-match-score {
+    width: 74px;
+    height: 74px;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-mobile-nav {
+    right: 6px;
+    bottom: 6px;
+    left: 6px;
+  }
+
+  .dashboard-mobile-nav-item {
+    font-size: 9px;
+  }
+
+  .dashboard-topbar-context > div:last-child > span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

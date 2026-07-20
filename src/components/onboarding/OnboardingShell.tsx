@@ -17,21 +17,6 @@ type OnboardingShellProps = {
   eyebrow?: string;
 };
 
-const STEP_LABELS = [
-  {
-    title: "Your taste",
-    description: "Tell us what kinds of games you enjoy.",
-  },
-  {
-    title: "Your platforms",
-    description: "Choose where you normally play.",
-  },
-  {
-    title: "Your collection",
-    description: "Add games you already own.",
-  },
-];
-
 export default function OnboardingShell({
   step,
   totalSteps,

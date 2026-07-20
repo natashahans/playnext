@@ -342,10 +342,12 @@ export default function DashboardPage() {
             return (
               <Link key={starter.title} href="/dashboard/recommend" className="home-session-card">
                 <div className="home-session-icon"><Icon size={19} aria-hidden="true" /></div>
-                <span>{starter.hint}</span>
-                <h3>{starter.title}</h3>
-                <p>{starter.description}</p>
-                <strong>Start deciding <ArrowRight size={14} aria-hidden="true" /></strong>
+                <div className="home-session-copy">
+                  <span>{starter.hint}</span>
+                  <h3>{starter.title}</h3>
+                  <p>{starter.description}</p>
+                </div>
+                <ArrowRight className="home-session-arrow" size={17} aria-hidden="true" />
               </Link>
             );
           })}

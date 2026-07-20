@@ -689,7 +689,10 @@ export default function RecommendPage() {
           <div className="ai-recommendation-content">
             <div className="ai-recommendation-heading">
               <div><span>{mode === "collection" ? "From your collection" : "New discovery"}</span><h2>{recommendedGame.title}</h2></div>
-              <div className="ai-match-score"><strong>{recommendedGame.score}</strong><span>% fit</span></div>
+              <div className="ai-match-score" aria-label={`PlayNext match score ${recommendedGame.score} out of 100`}>
+                <strong>{recommendedGame.score}</strong>
+                <span>match score</span>
+              </div>
             </div>
 
             <div className="ai-recommendation-meta">

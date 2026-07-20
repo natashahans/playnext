@@ -40,7 +40,7 @@ export default function CheckResetEmailPage() {
       <h1 className="auth-title">Check your email</h1>
 
       <p className="auth-helper">
-        We've sent a password reset link to <strong>{email}</strong>.
+        We’ve sent a password reset link to <strong>{email}</strong>.
       </p>
 
       {errorMessage && (

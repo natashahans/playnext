@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
   Gamepad2,
   Search,
   Sparkles,
@@ -38,6 +40,7 @@ export default function SearchPage() {
   const [existingRawgIds, setExistingRawgIds] = useState<Set<number>>(new Set());
   const [loadingDiscovery, setLoadingDiscovery] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -129,13 +132,27 @@ export default function SearchPage() {
   }
 
   function scrollToSection(target: string) {
-    document.getElementById(target)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    const hiddenTarget = discovery?.sections
+      .slice(3)
+      .some((section) => section.id === target);
+
+    if (hiddenTarget && !showAllCategories) {
+      setShowAllCategories(true);
+      window.setTimeout(() => {
+        document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
+      return;
+    }
+
+    document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const featured = discovery?.featured ?? null;
+  const catalogueSections = discovery?.sections ?? [];
+  const visibleSections = showAllCategories
+    ? catalogueSections
+    : catalogueSections.slice(0, 3);
+  const hasAdditionalCategories = catalogueSections.length > 3;
 
   return (
     <div className="discover-page">
@@ -260,7 +277,7 @@ export default function SearchPage() {
           </nav>
 
           <div className="discover-shelves">
-            {discovery?.sections.map((section) => (
+            {visibleSections.map((section) => (
               <GameRail
                 key={section.id}
                 section={section}
@@ -269,6 +286,26 @@ export default function SearchPage() {
               />
             ))}
           </div>
+
+          {hasAdditionalCategories && (
+            <button
+              type="button"
+              className="discover-more-categories"
+              aria-expanded={showAllCategories}
+              onClick={() => {
+                setShowAllCategories((current) => !current);
+                if (showAllCategories) {
+                  document.querySelector(".discover-chips")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }}
+            >
+              <span>
+                <strong>{showAllCategories ? "Show fewer categories" : "Explore more categories"}</strong>
+                <small>{showAllCategories ? "Return to the essential discovery shelves" : "Action, role-playing and independent discoveries"}</small>
+              </span>
+              {showAllCategories ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+            </button>
+          )}
         </>
       )}
     </div>
