@@ -31,6 +31,7 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   reactCompiler: true,
   poweredByHeader: false,
+  allowedDevOrigins: ["192.168.18.91"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "media.rawg.io" },

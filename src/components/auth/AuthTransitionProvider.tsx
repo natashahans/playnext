@@ -19,11 +19,15 @@ type AuthTransitionContextValue = {
 const AuthTransitionContext =
   createContext<AuthTransitionContextValue | null>(null);
 
+const AUTH_CHECK_TIMEOUT_MS = 5000;
+
 export function useAuthTransition() {
   const context = useContext(AuthTransitionContext);
 
   if (!context) {
-    throw new Error("useAuthTransition must be used inside AuthTransitionProvider");
+    throw new Error(
+      "useAuthTransition must be used inside AuthTransitionProvider",
+    );
   }
 
   return context;
@@ -52,33 +56,72 @@ export default function AuthTransitionProvider({
   }
 
   useEffect(() => {
+    let active = true;
+    let settled = false;
+
+    function showAuthPage() {
+      if (!active || settled) return;
+
+      settled = true;
+      setCheckingAuth(false);
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      showAuthPage();
+    }, AUTH_CHECK_TIMEOUT_MS);
+
     async function redirectLoggedInUser() {
-      const { data: userData } = await supabase.auth.getUser();
+      try {
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser();
 
-      if (!userData.user) {
-        window.setTimeout(() => setCheckingAuth(false), 0);
-        return;
+        if (!active || settled) return;
+
+        if (userError || !userData.user) {
+          showAuthPage();
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("id", userData.user.id)
+          .maybeSingle();
+
+        if (!active || settled) return;
+
+        if (profileError) {
+          showAuthPage();
+          return;
+        }
+
+        settled = true;
+        window.clearTimeout(timeoutId);
+        setCheckingAuth(false);
+
+        if (profile?.onboarding_completed) {
+          router.replace("/dashboard");
+          return;
+        }
+
+        router.replace("/onboarding/genres");
+      } catch {
+        showAuthPage();
       }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("onboarding_completed")
-        .eq("id", userData.user.id)
-        .maybeSingle();
-
-      if (profile?.onboarding_completed) {
-        router.replace("/dashboard");
-        return;
-      }
-
-      router.replace("/onboarding/genres");
     }
 
     redirectLoggedInUser();
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+    };
   }, [router]);
 
   useEffect(() => {
-    window.requestAnimationFrame(() => setExiting(false));
+    window.requestAnimationFrame(() => {
+      setExiting(false);
+    });
   }, [pathname]);
 
   useEffect(() => {
