@@ -1,5 +1,12 @@
-import { redirect } from "next/navigation";
+import LandingHero from "@/components/landing/LandingHero";
+import LandingNavbar from "@/components/landing/LandingNavbar";
+import "./landing.css";
 
 export default function Home() {
-  redirect("/signup");
+  return (
+    <div className="landing-page">
+      <LandingNavbar />
+      <LandingHero />
+    </div>
+  );
 }
