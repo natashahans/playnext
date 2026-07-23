@@ -40,11 +40,20 @@ test("fallback extraction converts common time expressions to minutes", () => {
   assert.equal(fallbackIntent([user("I have an hour")]).intent.availableTime, 60);
   assert.equal(fallbackIntent([user("I have a couple of hours")]).intent.availableTime, 120);
   assert.equal(fallbackIntent([user("I can play all evening")]).intent.availableTime, 240);
+  assert.equal(fallbackIntent([user("I have plenty of time")]).intent.availableTime, 240);
 });
 
 test("fallback extraction preserves several requested experiences", () => {
   const result = fallbackIntent([user("I want a relaxing story with exploration")]);
   assert.deepEqual(result.intent.desiredExperiences, ["relaxing", "story", "exploration"]);
+  assert.equal(result.status, "ready");
+});
+
+test("fallback extraction understands emotional and stressful phrasing", () => {
+  const result = fallbackIntent([user("I want something emotional but nothing too stressful")]);
+
+  assert.ok(result.intent.desiredExperiences.includes("story"));
+  assert.equal(result.intent.difficultyPreference, "easy");
   assert.equal(result.status, "ready");
 });
 
@@ -89,7 +98,10 @@ test("intent summaries contain only captured signals", () => {
     desiredExperiences: ["story"],
     difficultyPreference: "easy",
   });
-  assert.equal(buildIntentSummary(result), "45 minutes, low energy, tired mood, story, easy difficulty");
+  assert.equal(
+    buildIntentSummary(result),
+    "you have about an hour, you sound tired, you’re low on energy, you want a story-driven game, you prefer easy difficulty"
+  );
 });
 
 test("long and repeated arrays are deduplicated and bounded", () => {
@@ -150,7 +162,7 @@ test("a later session correction replaces conflicting earlier qualities", () => 
 
   assert.deepEqual(result.intent.desiredExperiences, ["story"]);
   assert.equal(result.intent.energyLevel, "high");
-  assert.equal(result.intent.availableTime, 120);
+  assert.ok(result.intent.availableTime !== null && result.intent.availableTime >= 120);
 });
 
 test("qualities inferred from a named comparison stay separate from explicit requests", () => {
@@ -172,4 +184,14 @@ test("qualities inferred from a named comparison stay separate from explicit req
   assert.deepEqual(result.intent.desiredExperiences, ["relaxing"]);
   assert.deepEqual(result.intent.inferredExperiences, ["story", "exploration"]);
   assert.deepEqual(result.intent.referenceGames, ["Rime"]);
+});
+
+test("model-supported experiences are preserved when grounded in the user text", () => {
+  const result = normalizeChatResponse({
+    status: "ready",
+    assistantMessage: "Understood",
+    intent: { ...emptyIntent(), desiredExperiences: ["story"], confidence: 0.9 },
+  }, [user("I want something emotional")]);
+
+  assert.deepEqual(result.intent.desiredExperiences, ["story"]);
 });

@@ -26,11 +26,11 @@ const KNOWN_GENRES = [
 ];
 
 const EXPERIENCE_SIGNAL_WORDS: Array<[DesiredExperience, string[]]> = [
-  ["relaxing", ["relax", "chill", "cozy", "cosy", "calm", "peaceful", "unwind"]],
-  ["story", ["story", "narrative", "plot", "characters", "character-driven"]],
-  ["action", ["action", "combat", "fast-paced"]],
+  ["relaxing", ["relax", "chill", "cozy", "cosy", "calm", "peaceful", "unwind", "stress free", "low stress", "before bed", "wind down"]],
+  ["story", ["story", "narrative", "plot", "characters", "character-driven", "emotional", "emotive", "heartfelt", "cinematic", "dramatic", "story-driven"]],
+  ["action", ["action", "combat", "fast-paced", "thrilling", "intense", "adrenaline"]],
   ["exploration", ["explore", "exploration", "open world", "wander"]],
-  ["challenge", ["challenge", "challenging", "difficult", "hard", "punishing"]],
+  ["challenge", ["challenge", "challenging", "difficult", "hard", "punishing", "stressful", "demanding"]],
   ["social", ["social", "friends", "multiplayer", "co-op"]],
   ["creative", ["creative", "building", "sandbox"]],
   ["strategic", ["strategy", "strategic", "tactical"]],
@@ -38,6 +38,17 @@ const EXPERIENCE_SIGNAL_WORDS: Array<[DesiredExperience, string[]]> = [
   ["funny", ["funny", "comedy", "lighthearted"]],
   ["scary", ["scary", "horror", "creepy", "tense"]],
   ["surprise", ["surprise me", "anything", "you choose"]],
+];
+
+const EXPERIENCE_SIGNAL_LOOKUP = new Map(EXPERIENCE_SIGNAL_WORDS);
+
+const TIME_SIGNAL_WORDS: Array<[number, string[]]> = [
+  [30, ["half an hour", "half hour", "30 minutes", "30 minute", "quick session", "short session", "little time", "not long", "before bed"]],
+  [60, ["an hour", "one hour", "around an hour", "about an hour"]],
+  [120, ["couple of hours", "a couple hours", "two hours", "few hours", "some time", "medium session"]],
+  [240, ["all evening", "all night", "all day", "plenty of time", "have time to spare", "the whole evening", "the whole night", "all weekend"]],
+  [180, ["all afternoon", "long session", "a while", "no rush", "long time"]],
+  [480, ["all day", "all weekend", "entire day", "entire weekend"]],
 ];
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -67,6 +78,64 @@ function clamp(value: number, min: number, max: number) {
 function normalizeMinutes(value: unknown) {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
   return Math.round(clamp(value, 5, 720));
+}
+
+function experienceSignals(experience: DesiredExperience) {
+  return EXPERIENCE_SIGNAL_LOOKUP.get(experience) ?? [];
+}
+
+function matchesExperienceSignal(text: string, experience: DesiredExperience) {
+  return includesAny(text, experienceSignals(experience));
+}
+
+function extractTimeSignal(text: string) {
+  const normalizedText = text.toLowerCase();
+
+  for (const [minutes, phrases] of TIME_SIGNAL_WORDS) {
+    if (includesAny(normalizedText, phrases)) return minutes;
+  }
+
+  return null;
+}
+
+function describeTime(minutes: number) {
+  if (minutes <= 30) return "you only have a short session";
+  if (minutes <= 60) return "you have about an hour";
+  if (minutes <= 120) return "you have a couple of hours";
+  if (minutes <= 240) return "you have plenty of time";
+  return "you have a very long stretch of time";
+}
+
+function describeExperience(experience: DesiredExperience) {
+  switch (experience) {
+    case "relaxing": return "something relaxing";
+    case "story": return "a story-driven game";
+    case "action": return "something action-heavy";
+    case "exploration": return "something exploratory";
+    case "challenge": return "a challenging game";
+    case "social": return "a co-op or multiplayer game";
+    case "creative": return "something creative";
+    case "strategic": return "something strategic";
+    case "immersive": return "something immersive";
+    case "funny": return "something funny";
+    case "scary": return "something scary";
+    case "surprise": return "something open-ended";
+  }
+}
+
+function describeMood(mood: Mood) {
+  switch (mood) {
+    case "calm": return "you’re in a calm mood";
+    case "tired": return "you sound tired";
+    case "stressed": return "you’re feeling stressed";
+    case "happy": return "you’re in a good mood";
+    case "sad": return "you’re feeling low";
+    case "focused": return "you want to stay focused";
+    case "restless": return "you want something that keeps you engaged";
+    case "social": return "you want something social";
+    case "neutral": return "you’re keeping it open";
+    case "unknown": return "";
+  }
 }
 
 export function emptyIntent(): ExtractedIntent {
@@ -201,10 +270,11 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
   const latestText = latestOriginal.toLowerCase();
   const intent = emptyIntent();
 
-  intent.availableTime = extractMinutes(text);
+  intent.availableTime = extractMinutes(text) ?? extractTimeSignal(text);
   const latestMinutes = extractMinutes(latestText);
+  const latestTimeSignal = extractTimeSignal(latestText);
 
-  if (includesAny(text, ["tired", "exhausted", "drained", "sleepy"])) intent.mood = "tired";
+  if (includesAny(text, ["tired", "exhausted", "drained", "sleepy", "burnt out", "burned out"])) intent.mood = "tired";
   else if (includesAny(text, ["stressed", "overwhelmed", "anxious"])) intent.mood = "stressed";
   else if (includesAny(text, ["happy", "great mood", "excited"])) intent.mood = "happy";
   else if (includesAny(text, ["sad", "down", "low mood"])) intent.mood = "sad";
@@ -217,6 +287,10 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
   else if (includesAny(text, ["high energy", "energetic", "pumped", "intense"])) intent.energyLevel = "high";
   else if (includesAny(text, ["medium energy", "normal energy"])) intent.energyLevel = "medium";
 
+  if (includesAny(text, ["stress free", "low stress", "no stress", "not too stressful", "nothing too stressful", "before bed", "wind down"])) {
+    intent.difficultyPreference = "easy";
+  }
+
   intent.desiredExperiences = EXPERIENCE_SIGNAL_WORDS
     .filter(([, signals]) => includesAny(text, signals))
     .map(([experience]) => experience);
@@ -228,12 +302,18 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
   if (changesSession && latestExperiences.length > 0) {
     intent.desiredExperiences = latestExperiences;
   }
-  if (changesSession && latestMinutes !== null) intent.availableTime = latestMinutes;
+  if (changesSession && (latestMinutes !== null || latestTimeSignal !== null)) intent.availableTime = latestMinutes ?? latestTimeSignal;
   intent.desiredExperience = intent.desiredExperiences.join(", ") || "unknown";
 
-  if (/\b(?:aggressive|pumped|high[- ]energy)\b/i.test(latestText)) intent.energyLevel = "high";
-  if (changesSession && /\b(?:long|lengthy|deep session)\b/i.test(latestText) && extractMinutes(latestText) === null) {
-    intent.availableTime = 120;
+  if (/\b(?:aggressive|pumped|high[- ]energy|intense|thrilling)\b/i.test(latestText)) intent.energyLevel = "high";
+  if (changesSession && /\b(?:shorter|less time|quicker|brief|short session)\b/i.test(latestText)) {
+    intent.availableTime = 30;
+  }
+  if (changesSession && /\b(?:longer|long|plenty of time|all evening|all day|no rush|deep session|long session)\b/i.test(latestText) && latestMinutes === null) {
+    intent.availableTime = latestTimeSignal ?? 240;
+  }
+  if (includesAny(text, ["before bed", "wind down", "calm", "chill", "relax"])) {
+    intent.sessionPace = "slow";
   }
 
   if (includesAny(text, ["easy", "forgiving", "no stress"])) intent.difficultyPreference = "easy";
@@ -272,6 +352,10 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
     intent.preferredGenres.length > 0,
     intent.avoidedGenres.length > 0,
     intent.difficultyPreference !== "unknown",
+    intent.sessionPace !== "unknown",
+    intent.multiplayerPreference !== "unknown" && intent.multiplayerPreference !== "either",
+    intent.referenceGames.length > 0,
+    intent.excludedGames.length > 0,
   ].filter(Boolean).length;
 
   intent.confidence = clamp(signalCount / 4, 0.2, 0.9);
@@ -282,20 +366,26 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
     status: ready ? "ready" : "needs_clarification",
     assistantMessage: ready
       ? `Understood — ${intent.summary.toLowerCase()}. I’ll compare the strongest matches in your collection now.`
-      : "I can help with that. How much time do you have, and do you want something relaxing, story-focused, or challenging?",
-    missingFields: ready ? [] : ["availableTime", "desiredExperiences"],
+      : "I can help with that. What kind of session do you want right now?",
+    missingFields: ready ? [] : ["desiredExperiences"],
     intent,
   };
 }
 
 export function buildIntentSummary(intent: ExtractedIntent) {
   const parts: string[] = [];
-  if (intent.availableTime) parts.push(`${intent.availableTime} minutes`);
-  if (intent.energyLevel !== "unknown") parts.push(`${intent.energyLevel} energy`);
-  if (intent.mood !== "unknown") parts.push(`${intent.mood} mood`);
-  if (intent.desiredExperiences.length > 0) parts.push(intent.desiredExperiences.join(" and "));
-  if (intent.difficultyPreference !== "unknown") parts.push(`${intent.difficultyPreference} difficulty`);
-  return parts.length > 0 ? parts.join(", ") : "an open-ended session";
+  if (intent.availableTime) parts.push(describeTime(intent.availableTime));
+  if (intent.mood !== "unknown") parts.push(describeMood(intent.mood));
+  if (intent.energyLevel === "low") parts.push("you’re low on energy");
+  else if (intent.energyLevel === "high") parts.push("you want something energetic");
+  if (intent.desiredExperiences.length > 0) {
+    const experienceSummary = intent.desiredExperiences.map(describeExperience).join(" and ");
+    parts.push(`you want ${experienceSummary}`);
+  }
+  if (intent.preferredGenres.length > 0) parts.push(`you like ${intent.preferredGenres.join(" and ")}`);
+  if (intent.difficultyPreference !== "unknown") parts.push(`you prefer ${intent.difficultyPreference} difficulty`);
+  if (parts.length === 0) return "an open-ended session";
+  return parts.join(", ");
 }
 
 export function normalizeChatResponse(value: unknown, messages: IntentChatMessage[]): IntentChatResponse {
@@ -313,7 +403,13 @@ export function normalizeChatResponse(value: unknown, messages: IntentChatMessag
   const groundedModelGenres = modelIntent.preferredGenres.filter((genre) =>
     userText.includes(genre.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim())
   );
-  const explicitExperiences = fallback.intent.desiredExperiences;
+  const groundedModelExperiences = modelIntent.desiredExperiences.filter((experience) =>
+    matchesExperienceSignal(userText, experience)
+  );
+  const explicitExperiences = Array.from(new Set([
+    ...fallback.intent.desiredExperiences,
+    ...groundedModelExperiences,
+  ]));
   const groundedExcludedGames = (modelIntent.excludedGames ?? []).filter((game) => {
     const target = game.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     return target.length >= 2 && userText.includes(target);
@@ -350,6 +446,7 @@ export function normalizeChatResponse(value: unknown, messages: IntentChatMessag
     intent.energyLevel !== "unknown" ||
     hasSpecificExperience ||
     intent.preferredGenres.length > 0 ||
+    intent.avoidedGenres.length > 0 ||
     intent.difficultyPreference !== "unknown";
   const requestedStatus = cleanString(input.status);
   const ready = requestedStatus === "ready" && hasSignal || userTurnCount >= 2;
@@ -365,6 +462,8 @@ export function normalizeChatResponse(value: unknown, messages: IntentChatMessag
     intent.sessionPace !== "unknown",
     intent.multiplayerPreference !== "unknown",
     intent.referenceGames.length > 0,
+    (intent.excludedGames ?? []).length > 0,
+    (intent.inferredExperiences ?? []).length > 0,
   ].filter(Boolean).length;
   intent.confidence = Math.min(intent.confidence, clamp(0.3 + evidenceSignals * 0.11, 0.3, 0.96));
   intent.summary = buildIntentSummary(intent);

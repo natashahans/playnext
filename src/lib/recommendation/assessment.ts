@@ -17,6 +17,8 @@ export function evidenceCount(intent: ExtractedIntent) {
     intent.sessionPace !== "unknown",
     intent.multiplayerPreference !== "unknown" && intent.multiplayerPreference !== "either",
     intent.referenceGames.length > 0,
+    (intent.excludedGames ?? []).length > 0,
+    (intent.inferredExperiences ?? []).length > 0,
   ].filter(Boolean).length;
 }
 
@@ -50,7 +52,7 @@ export function selectionConfidence(
 
 function clarificationQuestion(intent: ExtractedIntent, ranked: ScoredGame[]) {
   if (intent.desiredExperiences.length === 0 && intent.preferredGenres.length === 0) {
-    return "I have several close matches. What matters most right now: relaxing, story, action, exploration, or challenge?";
+    return "I can help with that. What kind of session do you want right now?";
   }
   if (intent.availableTime === null) {
     return "A few matches are very close. Roughly how much time do you want to play right now?";
@@ -74,11 +76,7 @@ export function assessRecommendationDecision(
   const margin = top && runnerUp ? Math.max(0, top.score - runnerUp.score) : 0;
   const confidence = top?.selectionConfidence ?? 0;
   const evidence = evidenceCount(intent);
-  const shouldClarify = eligible.length > 1 && (
-    evidence === 0 ||
-    confidence < 45 ||
-    (margin <= 3 && evidence < 4)
-  );
+  const shouldClarify = eligible.length > 1 && evidence === 0;
 
   return {
     shouldClarify,

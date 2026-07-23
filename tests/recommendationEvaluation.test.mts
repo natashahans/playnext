@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { assessRecommendationDecision } from "../src/lib/recommendation/assessment.ts";
 import { scoreGames } from "../src/lib/recommendationEngine.ts";
 import type { ExtractedIntent, RecommendationGame } from "../src/lib/recommendation/types.ts";
 
@@ -106,4 +107,12 @@ test("scores a catalogue-sized pool within an interactive response budget", () =
 
   assert.equal(ranked.length, 1_000);
   assert.ok(elapsed < 1_000, `Scoring 1,000 candidates took ${elapsed.toFixed(1)}ms`);
+});
+
+test("one meaningful signal is enough to skip clarification", () => {
+  const ranked = scoreGames(library, intent({ desiredExperiences: ["story"] }), [], null, [], { now: NOW });
+  const assessment = assessRecommendationDecision(ranked, intent({ desiredExperiences: ["story"] }));
+
+  assert.equal(assessment.shouldClarify, false);
+  assert.equal(assessment.question, null);
 });

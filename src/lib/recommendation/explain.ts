@@ -42,7 +42,9 @@ export function buildExplanation({
   const rest = strongest.slice(1);
   let explanation: string;
 
-  if (/session|available time|short|deeper game/i.test(first)) {
+  if (/^(you|your|the time you have|the session you mentioned|the request you described)/i.test(first)) {
+    explanation = sentence(first);
+  } else if (/session|available time|short|deeper game/i.test(first)) {
     explanation = `For the time you have, ${first}.`;
   } else if (/energy|pace/i.test(first)) {
     explanation = `For how you feel right now, ${first}.`;

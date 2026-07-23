@@ -46,6 +46,24 @@ type Eligibility = {
 const DAY_MS = 86_400_000;
 const SCORE_BASELINE = 42;
 
+function describeExperience(experience: string) {
+  switch (experience) {
+    case "relaxing": return "relaxing";
+    case "story": return "story-driven";
+    case "action": return "action-heavy";
+    case "exploration": return "exploration-focused";
+    case "challenge": return "challenging";
+    case "social": return "co-op or multiplayer";
+    case "creative": return "creative";
+    case "strategic": return "strategic";
+    case "immersive": return "immersive";
+    case "funny": return "funny";
+    case "scary": return "scary";
+    case "surprise": return "open-ended";
+    default: return experience;
+  }
+}
+
 function validAgeInDays(createdAt: string | null | undefined, now: number) {
   if (!createdAt) return Number.POSITIVE_INFINITY;
   const timestamp = new Date(createdAt).getTime();
@@ -140,7 +158,7 @@ function evaluateLiveContext(game: RecommendationGame, intent: ExtractedIntent):
     if (intent.availableTime <= 30) {
       if (isShortSessionFriendly(game)) {
         points += 15;
-        reasons.push("it works well for the short session you have");
+        reasons.push("you only have a short session, and this game fits it well");
       } else if (isLongForm(game)) {
         points -= 10;
         cautions.push("it may be difficult to enjoy fully in a very short session");
@@ -148,17 +166,17 @@ function evaluateLiveContext(game: RecommendationGame, intent: ExtractedIntent):
     } else if (intent.availableTime <= 75) {
       points += 4;
       if (isShortSessionFriendly(game)) points += 3;
-      reasons.push("it fits the medium-length session available");
+      reasons.push("you mentioned a medium-length session, and this fits comfortably");
     } else if (intent.availableTime >= 120 && isLongForm(game)) {
       points += 10;
-      reasons.push("your available time suits a deeper game");
+      reasons.push("you said you have plenty of time for a deeper game");
     }
   }
 
   if (intent.energyLevel === "low" || ["tired", "stressed", "sad"].includes(intent.mood)) {
     if (matchesSignal(game, LOW_ENERGY_SIGNALS)) {
       points += 12;
-      reasons.push("its pace suits your current energy");
+      reasons.push("your current energy points toward something calmer");
     }
     if (matchesSignal(game, HIGH_ENERGY_SIGNALS) && !matchesSignal(game, LOW_ENERGY_SIGNALS)) {
       points -= 9;
@@ -169,7 +187,7 @@ function evaluateLiveContext(game: RecommendationGame, intent: ExtractedIntent):
   if (intent.energyLevel === "high" || ["restless", "happy"].includes(intent.mood)) {
     if (matchesSignal(game, HIGH_ENERGY_SIGNALS)) {
       points += 12;
-      reasons.push("its intensity matches your energy");
+      reasons.push("you sound energetic, and this game keeps the pace up");
     }
   }
 
@@ -178,7 +196,7 @@ function evaluateLiveContext(game: RecommendationGame, intent: ExtractedIntent):
     if (signals && matchesSignal(game, signals)) {
       points += 9;
       if (matchesSignal(game, EXPERIENCE_PRIMARY_SIGNALS[experience] ?? [])) points += 3;
-      reasons.push(`it supports the ${experience} experience you described`);
+      reasons.push(`you asked for a ${describeExperience(experience)} session`);
     }
   });
 
@@ -189,8 +207,8 @@ function evaluateLiveContext(game: RecommendationGame, intent: ExtractedIntent):
       points += 4;
       const reference = intent.referenceGames[0];
       reasons.push(reference
-        ? `it shares ${experience} qualities associated with ${reference}`
-        : `it has ${experience} qualities inferred from your comparison`);
+        ? `it shares ${describeExperience(experience)} qualities associated with ${reference}`
+        : `it has ${describeExperience(experience)} qualities inferred from your comparison`);
     }
   });
 
