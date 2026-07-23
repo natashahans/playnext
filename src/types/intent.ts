@@ -35,12 +35,14 @@ export type ExtractedIntent = {
   energyLevel: EnergyLevel;
   desiredExperience: string;
   desiredExperiences: DesiredExperience[];
+  inferredExperiences?: DesiredExperience[];
   difficultyPreference: DifficultyPreference;
   sessionPace: SessionPace;
   multiplayerPreference: MultiplayerPreference;
   preferredGenres: string[];
   avoidedGenres: string[];
   referenceGames: string[];
+  excludedGames?: string[];
   confidence: number;
   summary: string;
 };

@@ -21,6 +21,18 @@ export default function CheckEmailPage() {
 
       if (!userData.user) return;
 
+      const { error: profileBootstrapError } = await supabase.from("profiles").upsert(
+        {
+          id: userData.user.id,
+          email: userData.user.email ?? null,
+        },
+        { onConflict: "id" }
+      );
+
+      if (profileBootstrapError) {
+        console.error("Unable to bootstrap profile on check-email:", profileBootstrapError.message);
+      }
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("onboarding_completed")

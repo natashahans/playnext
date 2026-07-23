@@ -7,12 +7,16 @@ import type { DiscoverySection } from "@/lib/rawg";
 
 type GameRailProps = {
   section: DiscoverySection;
-  existingRawgIds: Set<number>;
-  onAdded: (gameId: number) => void;
+  collectionEntries?: Map<number, string>;
+  onCollectionChange?: (gameId: number, userGameId: string | null) => void;
+  existingRawgIds?: Set<number>;
+  onAdded?: (gameId: number) => void;
 };
 
 export default function GameRail({
   section,
+  collectionEntries,
+  onCollectionChange,
   existingRawgIds,
   onAdded,
 }: GameRailProps) {
@@ -47,10 +51,7 @@ export default function GameRail({
   return (
     <section id={section.id} className="discover-rail-section">
       <div className="discover-rail-header">
-        <div>
-          <h2>{section.title}</h2>
-          <p>{section.subtitle}</p>
-        </div>
+        <h2>{section.title}</h2>
 
         <div className="discover-rail-controls" aria-label={`${section.title} controls`}>
           <button type="button" onClick={() => scroll(-1)} aria-label={`Scroll ${section.title} left`} disabled={!canScrollLeft}>
@@ -73,8 +74,12 @@ export default function GameRail({
           <DiscoveryGameCard
             key={game.id}
             game={game}
-            alreadyAdded={existingRawgIds.has(game.id)}
-            onAdded={onAdded}
+            existingUserGameId={collectionEntries?.get(game.id)}
+            alreadyAdded={collectionEntries?.has(game.id) ?? existingRawgIds?.has(game.id) ?? false}
+            onCollectionChange={(gameId, userGameId) => {
+              onCollectionChange?.(gameId, userGameId);
+              if (userGameId) onAdded?.(gameId);
+            }}
             priority={section.id === "trending" && index < 3}
           />
         ))}

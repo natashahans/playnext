@@ -14,10 +14,30 @@ export default function OnboardingLayout({
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    async function checkUser() {
-      const { data } = await supabase.auth.getUser();
+    let active = true;
 
-      if (!data.user) {
+    async function checkUser() {
+      const { data, error } = await supabase.auth.getUser();
+
+      if (!active) return;
+
+      if (error || !data.user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { error: profileError } = await supabase.from("profiles").upsert(
+        {
+          id: data.user.id,
+          email: data.user.email ?? null,
+        },
+        { onConflict: "id" }
+      );
+
+      if (!active) return;
+
+      if (profileError) {
+        console.error("Unable to bootstrap profile before onboarding:", profileError.message);
         router.replace("/login");
         return;
       }
@@ -26,6 +46,10 @@ export default function OnboardingLayout({
     }
 
     checkUser();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   async function handleLogout() {

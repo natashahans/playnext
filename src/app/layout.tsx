@@ -2,13 +2,17 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./add-games.css";
 import "./dashboard-home.css";
-import "./decide-ai.css";
 import "./library-pages.css";
 import "./product-polish.css";
+import "./authenticated-overhaul.css";
+import "./playnext-final.css";
+import "./decide-ai.css";
+import "./collection-final.css";
+import "./radius-consistency.css";
 
 export const metadata: Metadata = {
   title: "PlayNext",
-  description: "AI-powered game backlog decision support system",
+  description: "One clear game recommendation for the session you have right now.",
 };
 
 export const viewport: Viewport = {

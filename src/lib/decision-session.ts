@@ -1,18 +1,30 @@
 import type { ScoredGame, RecommendationMode } from "@/lib/recommendation/types";
 import type { ExtractedIntent, IntentChatMessage } from "@/types/intent";
 
+export type RecommendationTurn = {
+  game: ScoredGame;
+  recommendationId: string;
+  evaluatedCount: number;
+  mode: RecommendationMode;
+  availableTime: number | null;
+};
+
+export type DecisionChatMessage = IntentChatMessage & {
+  recommendation?: RecommendationTurn;
+};
+
 export type StoredDecisionState = {
   mode: RecommendationMode;
-  messages: IntentChatMessage[];
+  messages: DecisionChatMessage[];
   extractedIntent: ExtractedIntent | null;
   recommendedGame: ScoredGame | null;
   recommendationId: string | null;
   evaluatedCount: number;
 };
 
-const DECISION_STORAGE_KEY = "playnext:active-decision:v2";
+const DECISION_STORAGE_KEY = "playnext:active-decision:v3";
 
-export function initialDecisionMessage(mode: RecommendationMode): IntentChatMessage {
+export function initialDecisionMessage(mode: RecommendationMode): DecisionChatMessage {
   return {
     id: `assistant-welcome-${mode}`,
     role: "assistant",
@@ -35,7 +47,7 @@ export function loadDecisionSession(): StoredDecisionState | null {
 
     return {
       mode: parsed.mode as RecommendationMode,
-      messages: parsed.messages as IntentChatMessage[],
+      messages: parsed.messages as DecisionChatMessage[],
       extractedIntent: parsed.extractedIntent ?? null,
       recommendedGame: parsed.recommendedGame ?? null,
       recommendationId: parsed.recommendationId ?? null,

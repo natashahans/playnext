@@ -12,12 +12,10 @@ export default function PlatformsPage() {
   const [loading, setLoading] = useState(false);
 
   function togglePlatform(platform: string) {
-    if (selectedPlatforms.includes(platform)) {
-      setSelectedPlatforms(selectedPlatforms.filter((item) => item !== platform));
-      return;
-    }
-
-    setSelectedPlatforms([...selectedPlatforms, platform]);
+    setSelectedPlatforms((current) => current.includes(platform)
+      ? current.filter((item) => item !== platform)
+      : [...current, platform]
+    );
   }
 
   async function savePlatforms() {
@@ -27,47 +25,35 @@ export default function PlatformsPage() {
 
     if (userError || !userData.user) {
       alert("Please log in again.");
+      setLoading(false);
       router.push("/login");
       return;
     }
 
-    const { data: existingPreference, error: preferenceError } = await supabase
-      .from("user_preferences")
-      .select("id")
-      .eq("user_id", userData.user.id)
-      .maybeSingle();
+    const { error: profileError } = await supabase.from("profiles").upsert(
+      {
+        id: userData.user.id,
+        email: userData.user.email ?? null,
+      },
+      { onConflict: "id" }
+    );
 
-    if (preferenceError) {
-      alert(preferenceError.message);
+    if (profileError) {
+      alert(profileError.message);
       setLoading(false);
       return;
     }
 
-    if (existingPreference) {
-      const { error } = await supabase
-        .from("user_preferences")
-        .update({
-          preferred_platforms: selectedPlatforms,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userData.user.id);
-
-      if (error) {
-        alert(error.message);
-        setLoading(false);
-        return;
-      }
-    } else {
-      const { error } = await supabase.from("user_preferences").insert({
+    const { error } = await supabase.from("user_preferences").upsert({
         user_id: userData.user.id,
         preferred_platforms: selectedPlatforms,
-      });
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
 
-      if (error) {
-        alert(error.message);
-        setLoading(false);
-        return;
-      }
+    if (error) {
+      alert(error.message);
+      setLoading(false);
+      return;
     }
 
     router.push("/onboarding/collection");
@@ -77,8 +63,9 @@ export default function PlatformsPage() {
     <OnboardingShell
       step={2}
       totalSteps={ONBOARDING_TOTAL_STEPS}
+      eyebrow="Your setup"
       title="Where do you play?"
-      description="Choose every platform you regularly play on."
+      description="Choose the platforms you can actually use. We’ll avoid recommending games you cannot play."
       backHref="/onboarding/genres"
       nextLabel="Continue"
       nextDisabled={selectedPlatforms.length === 0 || loading}

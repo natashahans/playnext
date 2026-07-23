@@ -61,9 +61,11 @@ export default function RemoveGameButton({
       type="button"
       onClick={() => setConfirming(true)}
       className="game-remove-button"
+      aria-label={`Remove ${gameTitle} from your library`}
+      title="Remove from library"
     >
       <Trash2 size={14} aria-hidden="true" />
-      Remove
+      <span className="sr-only">Remove {gameTitle}</span>
     </button>
   );
 }

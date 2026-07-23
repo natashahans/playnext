@@ -74,12 +74,6 @@ export default function DashboardLayout({
           <section id="dashboard-main-content" className="dashboard-content" tabIndex={-1}>
             {children}
           </section>
-          <footer className="dashboard-attribution">
-            Game data by{" "}
-            <a href="https://rawg.io" target="_blank" rel="noreferrer">
-              RAWG
-            </a>
-          </footer>
         </div>
       </div>
     </main>

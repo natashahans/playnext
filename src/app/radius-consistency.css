@@ -1,0 +1,201 @@
+/*
+ * PLAYNEXT — RADIUS CONSISTENCY
+ *
+ * My Library is the geometry reference: restrained corners on surfaces,
+ * slightly tighter corners on controls, and circles only where the control
+ * is genuinely icon-only. This file loads last so older page-specific styles
+ * cannot reintroduce oversized rounded cards.
+ */
+
+:root {
+  --pn-radius-xs: 4px;
+  --pn-radius-sm: 6px;
+  --pn-radius-md: 8px;
+  --pn-radius-lg: 10px;
+}
+
+/* Home */
+.pn-home-final-hero {
+  border-radius: var(--pn-radius-lg);
+}
+
+.pn-home-final-decision,
+.pn-home-final-library .pn-home-game {
+  border-radius: var(--pn-radius-md);
+}
+
+.pn-home-final-decision-art {
+  border-radius: var(--pn-radius-sm);
+}
+
+.pn-home-final-hero .pn-button,
+.pn-home-final-hero .pn-home-hero-actions > a:not(.pn-button) {
+  border-radius: var(--pn-radius-sm);
+}
+
+/* Discover */
+.discover-search,
+.discover-error,
+.discover-empty,
+.discover-loading-row,
+.discover-card {
+  border-radius: var(--pn-radius-md);
+}
+
+.discover-search > button[type="submit"] {
+  border-radius: var(--pn-radius-sm);
+}
+
+.discover-card-artwork {
+  border-radius: var(--pn-radius-sm) var(--pn-radius-sm) 0 0;
+}
+
+.discover-card .game-add-action > span[role="alert"] {
+  border-radius: var(--pn-radius-sm);
+}
+
+/* These controls communicate a single icon action, so they remain circular. */
+.discover-card .game-add-button.game-add-button-icon,
+.discover-rail-controls button {
+  border-radius: 50%;
+}
+
+/* Game details */
+.game-detail-hero {
+  border-radius: var(--pn-radius-lg);
+}
+
+.game-detail-back,
+.game-detail-actions .game-add-button,
+.game-detail-actions > a {
+  border-radius: var(--pn-radius-sm) !important;
+}
+
+.game-detail-genres span {
+  border-radius: var(--pn-radius-xs);
+}
+
+.game-detail-about,
+.game-detail-error,
+.game-detail-loading,
+.game-detail-gallery-section,
+.game-detail-media-section,
+.game-detail-sidebar > *,
+.game-detail-fact-grid,
+.game-detail-facts {
+  border-radius: var(--pn-radius-md);
+}
+
+.game-detail-gallery-feature,
+.game-detail-gallery-feature > span,
+.game-detail-gallery-thumbnails button {
+  border-radius: var(--pn-radius-sm);
+}
+
+/* Decide — the page itself stays full-bleed; only contained UI is rounded. */
+.ai-decide-page .ai-chat-shell {
+  border-radius: 0;
+}
+
+.ai-decide-page
+  .ai-recommendation-turn
+  .ai-recommendation-intro
+  + .ai-inline-recommendation {
+  margin-top: 14px !important;
+}
+
+.ai-decide-page .ai-source-switch,
+.ai-decide-page .ai-source-toggle,
+.ai-decide-page .ai-message > span,
+.ai-decide-page .ai-message p,
+.ai-decide-page .ai-message-bubble,
+.ai-decide-page .ai-typing,
+.ai-decide-page .ai-engine-progress,
+.ai-decide-page .ai-inline-recommendation,
+.ai-decide-page .ai-chat-composer,
+.ai-decide-page .ai-context-card,
+.ai-decide-page .ai-decide-error,
+.ai-decide-page .ai-feedback-detail,
+.ai-decide-page .ai-feedback-detail textarea,
+.ai-decide-page .ai-feedback-success,
+.ai-decide-page .ai-feedback-another,
+.ai-decide-page .ai-insight-drawer,
+.ai-decide-page .ai-insight-game,
+.ai-decide-page .ai-score-details,
+.ai-decide-page .ai-insight-score-list,
+.ai-decide-page .ai-insight-evidence,
+.ai-decide-page .ai-refine-hint {
+  border-radius: var(--pn-radius-md);
+}
+
+.ai-decide-page .ai-source-switch button,
+.ai-decide-page .ai-source-toggle button,
+.ai-decide-page .ai-match-score,
+.ai-decide-page .ai-new-chat-button,
+.ai-decide-page .ai-inline-actions .pn-button,
+.ai-decide-page .ai-discovery-add button,
+.ai-decide-page .ai-feedback-detail button,
+.ai-decide-page .ai-chat-composer button,
+.ai-decide-page .ai-insight-drawer > header button,
+.ai-decide-page .ai-insight-game > img,
+.ai-decide-page .ai-insight-game > span {
+  border-radius: var(--pn-radius-sm);
+}
+
+.ai-decide-page .ai-inline-recommendation-art {
+  border-radius: var(--pn-radius-sm) 0 0 var(--pn-radius-sm);
+}
+
+.ai-decide-page .ai-inline-recommendation-art > span {
+  border-radius: var(--pn-radius-sm) 0 0 var(--pn-radius-sm);
+}
+
+.ai-decide-page .ai-chat-thread.is-opening .ai-message-opening .ai-message-bubble {
+  border-radius: var(--pn-radius-md);
+}
+
+/* Compact choice chips stay pill-shaped because their shape signals choice. */
+.ai-decide-page .ai-feedback-option,
+.ai-decide-page .ai-chat-suggestions button {
+  border-radius: 999px;
+}
+
+@media (max-width: 760px) {
+  .ai-decide-page .ai-inline-recommendation-art {
+    border-radius: var(--pn-radius-sm) var(--pn-radius-sm) 0 0;
+  }
+}
+/* =========================================================
+   LIBRARY — MATCH THE REST OF THE PRODUCT
+   ========================================================= */
+
+.pn-library-page .pn-library-toolbar,
+.pn-library-page .pn-library-card {
+  border-radius: var(--pn-radius-md) !important; /* 8px */
+}
+
+.pn-library-page .pn-library-artwork {
+  border-radius:
+    calc(var(--pn-radius-md) - 1px)
+    calc(var(--pn-radius-md) - 1px)
+    0
+    0 !important;
+}
+
+/* This was missing before—the visible white card body */
+.pn-library-page .pn-library-card-body {
+  border-radius:
+    0
+    0
+    calc(var(--pn-radius-md) - 1px)
+    calc(var(--pn-radius-md) - 1px) !important;
+}
+
+.pn-library-page .pn-library-search,
+.pn-library-page .pn-library-select,
+.pn-library-page .pn-library-header-actions a,
+.pn-library-page .pn-library-card-status,
+.pn-library-page .pn-library-card-status select,
+.pn-library-page .pn-library-card-remove {
+  border-radius: var(--pn-radius-sm) !important; /* 6px */
+}

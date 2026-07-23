@@ -1,24 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
-  BookOpen,
   Check,
-  Clock3,
-  Feather,
-  Flame,
-  Gamepad2,
-  Gauge,
-  KeyRound,
-  Monitor,
   RotateCcw,
-  Scale,
-  Settings2,
-  ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
-  Target,
-  UserRound,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { GENRES, PLATFORMS } from "@/lib/onboarding";
@@ -37,23 +23,7 @@ type PreferenceState = {
   sessionLengthPreference: string;
 };
 
-const playStyleOptions = [
-  { value: "story", label: "Story-focused", description: "Characters, world and narrative come first.", icon: BookOpen },
-  { value: "gameplay", label: "Gameplay-focused", description: "Mechanics, challenge and moment-to-moment play.", icon: Gamepad2 },
-  { value: "balanced", label: "Balanced", description: "A strong mix of story and gameplay.", icon: Scale },
-] as const;
-
-const difficultyOptions = [
-  { value: "easy", label: "Forgiving", description: "Relaxed challenge and lower friction.", icon: Feather },
-  { value: "normal", label: "Balanced", description: "A fair challenge without being punishing.", icon: Gauge },
-  { value: "hard", label: "Challenging", description: "Demanding games that reward mastery.", icon: Flame },
-] as const;
-
-const sessionOptions = [
-  { value: "short", label: "Short", description: "Usually under 45 minutes.", icon: Clock3 },
-  { value: "medium", label: "Medium", description: "Around one to two hours.", icon: Target },
-  { value: "long", label: "Long", description: "Deep sessions of two hours or more.", icon: Sparkles },
-] as const;
+type EditorKey = "favoriteGenres" | "preferredPlatforms";
 
 function serializePreferences(state: PreferenceState) {
   return JSON.stringify({
@@ -61,6 +31,21 @@ function serializePreferences(state: PreferenceState) {
     favoriteGenres: [...state.favoriteGenres].sort(),
     preferredPlatforms: [...state.preferredPlatforms].sort(),
   });
+}
+
+function renderPreferenceSummary(items: string[], maxVisible = 3): ReactNode {
+  if (items.length === 0) return "Not set";
+  if (items.length <= maxVisible) return items.join(" • ");
+
+  const visible = items.slice(0, maxVisible).join(" • ");
+  const remaining = items.length - maxVisible;
+
+  return (
+    <>
+      <span>{visible}</span>
+      <small>+{remaining} more</small>
+    </>
+  );
 }
 
 export default function SettingsPage() {
@@ -71,12 +56,14 @@ export default function SettingsPage() {
   const [sessionLengthPreference, setSessionLengthPreference] = useState("");
   const [initialSnapshot, setInitialSnapshot] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [initialDisplayName, setInitialDisplayName] = useState("");
   const [account, setAccount] = useState<AccountInfo>({ email: "", createdAt: null });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [activeEditor, setActiveEditor] = useState<EditorKey | null>(null);
+  const [draftGenres, setDraftGenres] = useState<string[]>([]);
+  const [draftPlatforms, setDraftPlatforms] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -118,7 +105,6 @@ export default function SettingsPage() {
         ? userData.user.user_metadata.full_name.trim().slice(0, 80)
         : "";
       setDisplayName(loadedName);
-      setInitialDisplayName(loadedName);
       setAccount({
         email: profileResult.data?.email ?? userData.user.email ?? "No email available",
         createdAt: profileResult.data?.created_at ?? userData.user.created_at ?? null,
@@ -130,6 +116,23 @@ export default function SettingsPage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (!activeEditor) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setActiveEditor(null);
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [activeEditor]);
+
   const currentPreferences = useMemo<PreferenceState>(() => ({
     favoriteGenres,
     preferredPlatforms,
@@ -138,21 +141,9 @@ export default function SettingsPage() {
     sessionLengthPreference,
   }), [favoriteGenres, preferredPlatforms, playStyle, difficultyPreference, sessionLengthPreference]);
 
-  const hasChanges = initialSnapshot !== "" && (
-    serializePreferences(currentPreferences) !== initialSnapshot ||
-    displayName.trim() !== initialDisplayName
-  );
-
-  const profileStrength = useMemo(() => {
-    const signals = [
-      favoriteGenres.length > 0,
-      preferredPlatforms.length > 0,
-      Boolean(playStyle),
-      Boolean(difficultyPreference),
-      Boolean(sessionLengthPreference),
-    ];
-    return Math.round((signals.filter(Boolean).length / signals.length) * 100);
-  }, [favoriteGenres, preferredPlatforms, playStyle, difficultyPreference, sessionLengthPreference]);
+  const hasChanges = initialSnapshot !== "" && serializePreferences(currentPreferences) !== initialSnapshot;
+  const favoriteGenresSummary = renderPreferenceSummary(favoriteGenres);
+  const preferredPlatformsSummary = renderPreferenceSummary(preferredPlatforms);
 
   function markChanged() {
     setSaved(false);
@@ -176,12 +167,61 @@ export default function SettingsPage() {
     );
   }
 
+  function openEditor(editor: EditorKey) {
+    if (editor === "favoriteGenres") {
+      setDraftGenres(favoriteGenres);
+    } else {
+      setDraftPlatforms(preferredPlatforms);
+    }
+    setActiveEditor(editor);
+  }
+
+  function toggleDraftGenre(genre: string) {
+    setDraftGenres((current) => {
+      if (current.includes(genre)) return current.filter((item) => item !== genre);
+      if (current.length >= 5) return current;
+      return [...current, genre];
+    });
+  }
+
+  function toggleDraftPlatform(platform: string) {
+    setDraftPlatforms((current) => current.includes(platform)
+      ? current.filter((item) => item !== platform)
+      : [...current, platform]
+    );
+  }
+
+  function applyEditor() {
+    if (!activeEditor) return;
+
+    if (activeEditor === "favoriteGenres") {
+      const changed = serializePreferences({
+        ...currentPreferences,
+        favoriteGenres: draftGenres,
+      }) !== serializePreferences(currentPreferences);
+      if (changed) {
+        setFavoriteGenres(draftGenres);
+        markChanged();
+      }
+    }
+
+    if (activeEditor === "preferredPlatforms") {
+      const changed = serializePreferences({
+        ...currentPreferences,
+        preferredPlatforms: draftPlatforms,
+      }) !== serializePreferences(currentPreferences);
+      if (changed) {
+        setPreferredPlatforms(draftPlatforms);
+        markChanged();
+      }
+    }
+
+    setActiveEditor(null);
+  }
+
   function resetPreferences() {
     setFavoriteGenres([]);
     setPreferredPlatforms([]);
-    setPlayStyle("");
-    setDifficultyPreference("");
-    setSessionLengthPreference("");
     setSaved(false);
     setErrorMessage("");
   }
@@ -199,32 +239,20 @@ export default function SettingsPage() {
       return;
     }
 
-    const cleanedDisplayName = displayName.trim().slice(0, 80);
-    if (!cleanedDisplayName) {
-      setErrorMessage("Please enter the name PlayNext should use for you.");
-      setSaving(false);
-      return;
-    }
+    const { error } = await supabase.from("user_preferences").upsert({
+      user_id: userData.user.id,
+      favorite_genres: favoriteGenres,
+      preferred_platforms: preferredPlatforms,
+      play_style: playStyle,
+      difficulty_preference: difficultyPreference,
+      session_length_preference: sessionLengthPreference,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
 
-    const [preferencesResult, accountResult] = await Promise.all([
-      supabase.from("user_preferences").upsert({
-        user_id: userData.user.id,
-        favorite_genres: favoriteGenres,
-        preferred_platforms: preferredPlatforms,
-        play_style: playStyle,
-        difficulty_preference: difficultyPreference,
-        session_length_preference: sessionLengthPreference,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" }),
-      supabase.auth.updateUser({ data: { full_name: cleanedDisplayName } }),
-    ]);
-
-    if (preferencesResult.error || accountResult.error) {
+    if (error) {
       setErrorMessage("Your settings couldn’t be saved completely. Please try again.");
     } else {
       setInitialSnapshot(serializePreferences(currentPreferences));
-      setDisplayName(cleanedDisplayName);
-      setInitialDisplayName(cleanedDisplayName);
       setSaved(true);
     }
     setSaving(false);
@@ -234,138 +262,138 @@ export default function SettingsPage() {
     return <div className="pn-page-loading" role="status"><span className="dashboard-loading-dot" />Loading your settings…</div>;
   }
 
+  const accountName = displayName || account.email.split("@")[0] || "Player";
+  const accountInitial = accountName.trim().charAt(0).toUpperCase() || "P";
+
+  const editorTitle = activeEditor === "favoriteGenres"
+    ? "Favourite genres"
+    : "Preferred platforms";
+
+  const editorDescription = activeEditor === "favoriteGenres"
+    ? "Choose up to five genres you enjoy the most."
+    : "Select the platforms you can play on.";
+
   return (
-    <div className="lib-page settings-v2">
-      <header className="lib-page-header">
+    <div className="lib-page settings-summary-page">
+      <header className="lib-page-header settings-summary-header">
         <div>
-          <span className="lib-kicker"><Settings2 size={14} /> Settings</span>
-          <h1>Build a recommendation profile that feels like you.</h1>
-          <p>These are long-term preferences, used as supporting signals. What you ask for in the moment still takes priority.</p>
+          <h1>Settings</h1>
+          <p>Manage the preferences PlayNext uses when choosing games for you.</p>
         </div>
       </header>
 
       {errorMessage && <div className="lib-inline-error" role="alert"><strong>Settings need attention</strong><span>{errorMessage}</span></div>}
 
-      <div className="settings-v2-layout">
-        <aside className="settings-v2-sidebar">
-          <section className="settings-profile-card">
-            <div className="settings-avatar"><UserRound size={25} /></div>
-            <span>Signed-in account</span>
-            <label className="settings-name-field">
-              <span>Display name</span>
-              <input
-                type="text"
-                value={displayName}
-                maxLength={80}
-                autoComplete="name"
-                onChange={(event) => {
-                  setDisplayName(event.target.value);
-                  markChanged();
-                }}
-                placeholder="Your name"
-              />
-            </label>
-            <h2>{account.email}</h2>
-            <p>{account.createdAt ? `Member since ${new Date(account.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}` : "PlayNext member"}</p>
+      <section className="settings-summary-account" aria-label="Account">
+        <div className="settings-summary-account-avatar" aria-hidden="true">{accountInitial}</div>
+        <div className="settings-summary-account-copy">
+          <strong>{accountName}</strong>
+          <span>{account.email}</span>
+          <small>{account.createdAt ? `Member since ${new Date(account.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}` : "PlayNext member"}</small>
+        </div>
+      </section>
 
-            <div className="settings-strength">
-              <div><span>Recommendation profile</span><strong>{profileStrength}%</strong></div>
-              <i><b style={{ width: `${profileStrength}%` }} /></i>
-              <p>{profileStrength === 100 ? "Your preference profile is complete." : "Add more preferences for stronger tie-breaking."}</p>
+      <main className="settings-summary-main">
+        <section className="settings-summary-card" aria-label="Settings summary">
+          <header className="settings-summary-card-head">
+            <h2>Recommendation preferences</h2>
+            <p>These defaults help PlayNext narrow down relevant games before considering your live mood, time and context.</p>
+          </header>
+
+          <button
+            type="button"
+            className="settings-summary-row"
+            onClick={() => openEditor("favoriteGenres")}
+          >
+            <div>
+              <h3>Favourite genres</h3>
+              <p>{favoriteGenresSummary}</p>
             </div>
+            <span className="settings-summary-edit">Edit <span aria-hidden="true">→</span></span>
+          </button>
 
-            <div className="settings-profile-summary">
-              <span><Gamepad2 size={14} /> {favoriteGenres.length} favourite genres</span>
-              <span><Monitor size={14} /> {preferredPlatforms.length} platforms</span>
-              <span><SlidersHorizontal size={14} /> {playStyle || "No play style"}</span>
+          <button
+            type="button"
+            className="settings-summary-row"
+            onClick={() => openEditor("preferredPlatforms")}
+          >
+            <div>
+              <h3>Preferred platforms</h3>
+              <p>{preferredPlatformsSummary}</p>
             </div>
+            <span className="settings-summary-edit">Edit <span aria-hidden="true">→</span></span>
+          </button>
+        </section>
 
-            <Button href="/login/forgot-password" variant="secondary"><KeyRound size={14} /> Change password</Button>
-          </section>
+        <section className="settings-summary-reset" aria-label="Reset recommendation preferences">
+          <div>
+            <strong>Reset recommendation preferences</strong>
+            <p>Clear your saved defaults and rely only on live conversation context.</p>
+          </div>
+          <Button variant="secondary" onClick={resetPreferences}><RotateCcw size={14} /> Reset preferences</Button>
+        </section>
+      </main>
 
-          <section className="settings-principle-card">
-            <ShieldCheck size={19} />
-            <div><strong>Live context comes first</strong><p>Mood, time and energy from the Decide conversation can override these defaults.</p></div>
-          </section>
-        </aside>
-
-        <main className="settings-v2-main">
-          <section className="settings-v2-section">
-            <div className="settings-v2-heading">
-              <span><Gamepad2 size={18} /></span>
-              <div><small>Taste profile</small><h2>Favourite genres</h2><p>Choose up to five genres PlayNext should recognise as your long-term taste.</p></div>
-              <strong>{favoriteGenres.length}/5</strong>
-            </div>
-            <div className="settings-v2-chip-grid">
-              {GENRES.map((genre) => {
-                const selected = favoriteGenres.includes(genre);
-                const unavailable = favoriteGenres.length >= 5 && !selected;
-                return <button type="button" key={genre} disabled={unavailable} aria-pressed={selected} className={selected ? "is-active" : ""} onClick={() => toggleGenre(genre)}>{selected && <Check size={13} />}{genre}</button>;
-              })}
-            </div>
-          </section>
-
-          <section className="settings-v2-section">
-            <div className="settings-v2-heading">
-              <span><Monitor size={18} /></span>
-              <div><small>Availability</small><h2>Preferred platforms</h2><p>Select the platforms you can realistically play on.</p></div>
-            </div>
-            <div className="settings-platform-grid">
-              {PLATFORMS.map((platform) => {
-                const selected = preferredPlatforms.includes(platform);
-                return <button type="button" key={platform} aria-pressed={selected} className={selected ? "is-active" : ""} onClick={() => togglePlatform(platform)}><span><Monitor size={18} /></span><div><strong>{platform}</strong><small>{selected ? "Included in recommendations" : "Not currently preferred"}</small></div>{selected && <Check size={15} />}</button>;
-              })}
-            </div>
-          </section>
-
-          <section className="settings-v2-section">
-            <div className="settings-v2-heading">
-              <span><SlidersHorizontal size={18} /></span>
-              <div><small>Recommendation defaults</small><h2>How you usually like to play</h2><p>These settings act as tie-breakers when several games fit equally well.</p></div>
-            </div>
-
-            <div className="settings-choice-group">
-              <div><strong>Play style</strong><button type="button" onClick={() => { setPlayStyle(""); markChanged(); }}>Clear</button></div>
-              <div className="settings-choice-grid">
-                {playStyleOptions.map((option) => {
-                  const Icon = option.icon;
-                  return <button type="button" key={option.value} aria-pressed={playStyle === option.value} className={playStyle === option.value ? "is-active" : ""} onClick={() => { setPlayStyle(option.value); markChanged(); }}><Icon size={18} /><strong>{option.label}</strong><span>{option.description}</span>{playStyle === option.value && <Check size={14} />}</button>;
-                })}
+      {activeEditor && (
+        <div className="settings-editor-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-editor-title" onClick={() => setActiveEditor(null)}>
+          <section className="settings-editor-panel" onClick={(event) => event.stopPropagation()}>
+            <header className="settings-editor-header">
+              <div>
+                <h2 id="settings-editor-title">{editorTitle}</h2>
+                <p>{editorDescription}</p>
               </div>
+              <button type="button" className="settings-editor-close" onClick={() => setActiveEditor(null)}>Cancel</button>
+            </header>
+
+            <div className="settings-editor-body">
+              {activeEditor === "favoriteGenres" && (
+                <>
+                  <div className="settings-editor-meta"><strong>{draftGenres.length}/5 selected</strong></div>
+                  <div className="settings-v2-chip-grid settings-editor-chips">
+                    {GENRES.map((genre) => {
+                      const selected = draftGenres.includes(genre);
+                      const unavailable = draftGenres.length >= 5 && !selected;
+                      return (
+                        <button type="button" key={genre} disabled={unavailable} aria-pressed={selected} className={selected ? "is-active" : ""} onClick={() => toggleDraftGenre(genre)}>
+                          {selected && <Check size={13} />}
+                          {genre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {activeEditor === "preferredPlatforms" && (
+                <div className="settings-platform-grid settings-editor-platforms">
+                  {PLATFORMS.map((platform) => {
+                    const selected = draftPlatforms.includes(platform);
+                    return (
+                      <button type="button" key={platform} aria-pressed={selected} className={selected ? "is-active" : ""} onClick={() => toggleDraftPlatform(platform)}>
+                        <span>{platform.slice(0, 1)}</span>
+                        <div>
+                          <strong>{platform}</strong>
+                          <small>{selected ? "Included in recommendations" : "Not currently preferred"}</small>
+                        </div>
+                        {selected && <Check size={15} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            <div className="settings-choice-group">
-              <div><strong>Difficulty</strong><button type="button" onClick={() => { setDifficultyPreference(""); markChanged(); }}>Clear</button></div>
-              <div className="settings-choice-grid">
-                {difficultyOptions.map((option) => {
-                  const Icon = option.icon;
-                  return <button type="button" key={option.value} aria-pressed={difficultyPreference === option.value} className={difficultyPreference === option.value ? "is-active" : ""} onClick={() => { setDifficultyPreference(option.value); markChanged(); }}><Icon size={18} /><strong>{option.label}</strong><span>{option.description}</span>{difficultyPreference === option.value && <Check size={14} />}</button>;
-                })}
-              </div>
-            </div>
-
-            <div className="settings-choice-group">
-              <div><strong>Typical session length</strong><button type="button" onClick={() => { setSessionLengthPreference(""); markChanged(); }}>Clear</button></div>
-              <div className="settings-choice-grid">
-                {sessionOptions.map((option) => {
-                  const Icon = option.icon;
-                  return <button type="button" key={option.value} aria-pressed={sessionLengthPreference === option.value} className={sessionLengthPreference === option.value ? "is-active" : ""} onClick={() => { setSessionLengthPreference(option.value); markChanged(); }}><Icon size={18} /><strong>{option.label}</strong><span>{option.description}</span>{sessionLengthPreference === option.value && <Check size={14} />}</button>;
-                })}
-              </div>
-            </div>
+              <footer className="settings-editor-footer">
+                <Button variant="secondary" onClick={() => setActiveEditor(null)}>Cancel</Button>
+                <Button onClick={applyEditor}>Done</Button>
+              </footer>
           </section>
+        </div>
+      )}
 
-          <section className="settings-reset-card">
-            <div><RotateCcw size={18} /><span><strong>Reset recommendation preferences</strong><p>Clear your saved taste defaults and rely only on live conversation context.</p></span></div>
-            <Button variant="secondary" onClick={resetPreferences}>Reset preferences</Button>
-          </section>
-        </main>
-      </div>
-
-      <div className="settings-v2-savebar">
+      <div className={`settings-v2-savebar ${hasChanges ? "is-active" : "is-idle"}`}>
         <div>
           {saved ? <span className="is-saved"><Check size={15} /> Settings saved successfully</span> : hasChanges ? <span><Sparkles size={15} /> You have unsaved changes</span> : <span>Everything is up to date</span>}
-          <small>Changes affect future recommendations, not past history.</small>
         </div>
         <Button onClick={handleSave} loading={saving} disabled={!hasChanges}>{saving ? "Saving…" : "Save changes"}</Button>
       </div>

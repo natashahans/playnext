@@ -74,6 +74,15 @@ function isDirectReference(game: RecommendationGame, intent: ExtractedIntent) {
   });
 }
 
+function isExcludedTitle(game: RecommendationGame, intent: ExtractedIntent) {
+  const title = normalizeSignal(game.title);
+  return (intent.excludedGames ?? []).some((excluded) => {
+    const target = normalizeSignal(excluded);
+    return target.length >= 2 &&
+      (title === target || title.includes(target) || target.includes(title));
+  });
+}
+
 function cappedEvaluation(
   points: number,
   min: number,
@@ -100,6 +109,10 @@ function evaluateEligibility(
   const reasons: string[] = [];
 
   if (!game.id || !game.title.trim()) reasons.push("The candidate does not contain enough game data.");
+
+  if (isExcludedTitle(game, intent)) {
+    reasons.push("The user explicitly rejected this game in the current conversation.");
+  }
 
   const avoided = matchingGameTargets(game, intent.avoidedGenres);
   if (avoided.length > 0) {
@@ -165,7 +178,19 @@ function evaluateLiveContext(game: RecommendationGame, intent: ExtractedIntent):
     if (signals && matchesSignal(game, signals)) {
       points += 9;
       if (matchesSignal(game, EXPERIENCE_PRIMARY_SIGNALS[experience] ?? [])) points += 3;
-      reasons.push(`it supports the ${experience} experience you asked for`);
+      reasons.push(`it supports the ${experience} experience you described`);
+    }
+  });
+
+  (intent.inferredExperiences ?? []).forEach((experience) => {
+    if (intent.desiredExperiences.includes(experience)) return;
+    const signals = EXPERIENCE_SIGNALS[experience];
+    if (signals && matchesSignal(game, signals)) {
+      points += 4;
+      const reference = intent.referenceGames[0];
+      reasons.push(reference
+        ? `it shares ${experience} qualities associated with ${reference}`
+        : `it has ${experience} qualities inferred from your comparison`);
     }
   });
 

@@ -4,18 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  CheckCircle2,
   Clock3,
   Gamepad2,
-  Library,
   ListFilter,
   PlayCircle,
   Plus,
   Search,
   SlidersHorizontal,
-  Star,
 } from "lucide-react";
-import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import RemoveGameButton from "@/components/games/RemoveGameButton";
@@ -53,9 +49,9 @@ type CollectionStatus = Exclude<StatusFilter, "all">;
 const COLLECTION_PAGE_SIZE = 48;
 
 const statusOptions = [
-  { value: "backlog", label: "Backlog" },
+  { value: "backlog", label: "Want to play" },
   { value: "playing", label: "Playing" },
-  { value: "completed", label: "Completed" },
+  { value: "completed", label: "Finished" },
 ] as const;
 
 function oneGame(row: CollectionRow) {
@@ -168,19 +164,6 @@ export default function CollectionPage() {
     collection.forEach((row) => oneGame(row)?.genres?.forEach((genre) => values.add(genre)));
     return [...values].sort((a, b) => a.localeCompare(b));
   }, [collection]);
-
-  const stats = useMemo(() => {
-    const ratings = collection
-      .map((row) => oneGame(row)?.rating)
-      .filter((rating): rating is number => rating != null && rating > 0);
-
-    return {
-      ...collectionTotals,
-      averageRating: ratings.length
-        ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
-        : 0,
-    };
-  }, [collection, collectionTotals]);
 
   const filteredCollection = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -299,14 +282,13 @@ export default function CollectionPage() {
   }
 
   return (
-    <div className="lib-page collection-v2">
-      <header className="lib-page-header">
+    <div className="pn-library-page">
+      <header className="pn-library-header">
         <div>
-          <span className="lib-kicker"><Library size={14} /> My collection</span>
-          <h1>Your games, organised around what comes next.</h1>
-          <p>Manage your backlog, track what you are playing, and keep PlayNext’s recommendation pool accurate.</p>
+          <h1>My library</h1>
+          <p>{collectionTotals.total} {collectionTotals.total === 1 ? "saved game" : "saved games"} in your library.</p>
         </div>
-        <div className="lib-header-actions">
+        <div className="pn-library-header-actions">
           <Button href="/dashboard/recommend" variant="secondary"><PlayCircle size={15} /> Decide what to play</Button>
           <Button href="/dashboard/search"><Plus size={15} /> Add games</Button>
         </div>
@@ -321,22 +303,14 @@ export default function CollectionPage() {
         </Card>
       ) : (
         <>
-          <section className="lib-stat-grid" aria-label="Collection overview">
-            <article><span className="lib-stat-icon"><Library size={17} /></span><div><small>Total games</small><strong>{stats.total}</strong><p>Available to organise</p></div></article>
-            <article><span className="lib-stat-icon"><Clock3 size={17} /></span><div><small>Backlog</small><strong>{stats.backlog}</strong><p>Waiting to be played</p></div></article>
-            <article><span className="lib-stat-icon"><PlayCircle size={17} /></span><div><small>Playing now</small><strong>{stats.playing}</strong><p>Easy to resume</p></div></article>
-            <article><span className="lib-stat-icon"><CheckCircle2 size={17} /></span><div><small>Completed</small><strong>{stats.completed}</strong><p>Excluded from most picks</p></div></article>
-            <article><span className="lib-stat-icon"><Star size={17} /></span><div><small>Recent-page rating</small><strong>{stats.averageRating ? stats.averageRating.toFixed(1) : "—"}</strong><p>Across currently loaded games</p></div></article>
-          </section>
-
-          <section className="lib-control-panel">
-            <div className="lib-search-row">
-              <label className="lib-search-box">
+          <section className="pn-library-toolbar" aria-label="Library filters">
+            <div className="pn-library-filter-row">
+              <label className="pn-library-search">
                 <Search size={17} /><span className="sr-only">Search collection</span>
-                <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search by title, genre or platform" />
+                <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search your library" />
               </label>
 
-              <label className="lib-select-box">
+              <label className="pn-library-select">
                 <ListFilter size={16} /><span className="sr-only">Filter by genre</span>
                 <select value={genreFilter} onChange={(event) => setGenreFilter(event.target.value)}>
                   <option value="all">All genres</option>
@@ -344,7 +318,7 @@ export default function CollectionPage() {
                 </select>
               </label>
 
-              <label className="lib-select-box">
+              <label className="pn-library-select">
                 <SlidersHorizontal size={16} /><span className="sr-only">Sort collection</span>
                 <select value={sortBy} onChange={(event) => setSortBy(event.target.value as SortOption)}>
                   <option value="recent">Recently added</option>
@@ -354,22 +328,22 @@ export default function CollectionPage() {
               </label>
             </div>
 
-            <div className="lib-status-tabs" role="tablist" aria-label="Filter by collection status">
+            <div className="pn-library-tabs" role="tablist" aria-label="Filter by collection status">
               {(["all", "backlog", "playing", "completed"] as StatusFilter[]).map((status) => {
-                const count = status === "all" ? stats.total : stats[status];
+                const count = status === "all" ? collectionTotals.total : collectionTotals[status];
                 return (
                   <button key={status} type="button" role="tab" aria-selected={statusFilter === status} className={statusFilter === status ? "is-active" : ""} onClick={() => setStatusFilter(status)}>
-                    {status === "all" ? "All games" : statusLabel(status)} <span>{count}</span>
+                    {status === "all" ? "All" : statusLabel(status)} <span>{count}</span>
                   </button>
                 );
               })}
             </div>
           </section>
 
-          {statusError && <div className="lib-inline-error" role="alert">{statusError}</div>}
+          {statusError && <div className="pn-library-error" role="alert">{statusError}</div>}
 
-          <div className="lib-results-heading">
-            <div><span>Library</span><h2>{filteredCollection.length} {filteredCollection.length === 1 ? "game" : "games"}</h2></div>
+          <div className="pn-library-results-heading">
+            <h2>{filteredCollection.length} {filteredCollection.length === 1 ? "game" : "games"}</h2>
             {(searchQuery || statusFilter !== "all" || genreFilter !== "all") && <button type="button" onClick={clearFilters}>Clear filters</button>}
           </div>
 
@@ -379,42 +353,43 @@ export default function CollectionPage() {
               <Button variant="secondary" onClick={clearFilters}>Clear filters</Button>
             </Card>
           ) : (
-            <div className="collection-v2-grid">
+            <div className="pn-library-grid">
               {filteredCollection.map((row) => {
                 const game = oneGame(row);
                 if (!game) return null;
+                const detailHref = game.slug ? `/dashboard/search/${game.slug}` : null;
 
                 return (
-                  <article key={row.id} className="collection-v2-card">
-                    <div className="collection-v2-artwork">
+                  <article key={row.id} className="pn-library-card">
+                    {detailHref && (
+                      <Link className="pn-library-card-link" href={detailHref} aria-label={`Open details for ${game.title}`}>
+                        <span className="sr-only">Open details for {game.title}</span>
+                      </Link>
+                    )}
+
+                    <div className="pn-library-artwork">
                       {game.background_image ? (
-                        <Image src={game.background_image} alt="" fill sizes="(max-width: 700px) 100vw, (max-width: 1180px) 50vw, 33vw" className="object-cover" />
+                        <Image src={game.background_image} alt={`${game.title} artwork`} fill sizes="(max-width: 680px) 50vw, (max-width: 1080px) 33vw, 25vw" className="object-cover" />
                       ) : <div className="game-artwork-placeholder"><Gamepad2 size={28} /></div>}
-                      <span className={`collection-status collection-status-${row.status}`}>{statusLabel(row.status)}</span>
-                      {game.rating != null && game.rating > 0 && <span className="collection-rating"><Star size={12} fill="currentColor" /> {game.rating.toFixed(1)}</span>}
                     </div>
 
-                    <div className="collection-v2-body">
-                      <div className="collection-v2-title"><h3>{game.title}</h3><span>Added {new Date(row.added_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span></div>
-
-                      <div className="collection-v2-badges">
-                        {game.genres?.slice(0, 3).map((genre) => <Badge key={genre}>{genre}</Badge>)}
+                    <div className="pn-library-card-body">
+                      <h3 title={game.title}>{game.title}</h3>
+                      <div className="pn-library-card-meta">
+                        <span>{game.genres?.slice(0, 2).join(" · ") || "Game"}</span>
+                        {game.playtime != null && game.playtime > 0 && <span><Clock3 size={13} /> {game.playtime}h</span>}
                       </div>
+                    </div>
 
-                      <div className="collection-v2-meta">
-                        <span>{game.platforms?.slice(0, 2).join(" · ") || "Platform unavailable"}</span>
-                        {game.playtime != null && game.playtime > 0 && <span><Clock3 size={13} /> {game.playtime}h average</span>}
-                      </div>
-
-                      <label className="collection-status-control">
-                        <span>Collection status</span>
-                        <select value={statusOptions.some((option) => option.value === row.status) ? row.status : "backlog"} disabled={updatingStatusId === row.id} onChange={(event) => updateStatus(row.id, event.target.value as CollectionStatus)}>
+                    <footer className="pn-library-card-controls">
+                      <label className={`pn-library-card-status${updatingStatusId === row.id ? " is-updating" : ""}`}>
+                        <span>Status</span>
+                        <select value={statusOptions.some((option) => option.value === row.status) ? row.status : "backlog"} disabled={updatingStatusId === row.id} onChange={(event) => updateStatus(row.id, event.target.value as CollectionStatus)} aria-label={`Status for ${game.title}`}>
                           {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                         </select>
                       </label>
 
-                      <div className="collection-v2-actions">
-                        {game.slug ? <Link href={`/dashboard/search/${game.slug}`}>View details</Link> : <span />}
+                      <div className="pn-library-card-remove">
                         <RemoveGameButton
                           userGameId={row.id}
                           gameTitle={game.title}
@@ -428,14 +403,14 @@ export default function CollectionPage() {
                           }}
                         />
                       </div>
-                    </div>
+                    </footer>
                   </article>
                 );
               })}
             </div>
           )}
           {hasMore && !searchQuery && statusFilter === "all" && genreFilter === "all" && (
-            <div className="lib-load-more">
+            <div className="pn-library-load-more">
               <Button variant="secondary" onClick={loadMore} loading={loadingMore}>
                 {loadingMore ? "Loading more…" : "Load more games"}
               </Button>

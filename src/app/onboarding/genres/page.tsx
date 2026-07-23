@@ -58,46 +58,32 @@ export default function GenresPage() {
       return;
     }
 
-    const { data: existingPreference, error: preferenceError } =
-      await supabase
-        .from("user_preferences")
-        .select("id")
-        .eq("user_id", userData.user.id)
-        .maybeSingle();
+    const { error: profileError } = await supabase.from("profiles").upsert(
+      {
+        id: userData.user.id,
+        email: userData.user.email ?? null,
+      },
+      { onConflict: "id" }
+    );
 
-    if (preferenceError) {
+    if (profileError) {
       setLoading(false);
-      alert(preferenceError.message);
+      alert(profileError.message);
       return;
     }
 
-    if (existingPreference) {
-      const { error } = await supabase
-        .from("user_preferences")
-        .update({
-          favorite_genres: selectedGenres,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userData.user.id);
+    const { error } = await supabase
+      .from("user_preferences")
+      .upsert({
+        user_id: userData.user.id,
+        favorite_genres: selectedGenres,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
 
-      if (error) {
-        setLoading(false);
-        alert(error.message);
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from("user_preferences")
-        .insert({
-          user_id: userData.user.id,
-          favorite_genres: selectedGenres,
-        });
-
-      if (error) {
-        setLoading(false);
-        alert(error.message);
-        return;
-      }
+    if (error) {
+      setLoading(false);
+      alert(error.message);
+      return;
     }
 
     router.push("/onboarding/platforms");
@@ -112,9 +98,9 @@ export default function GenresPage() {
     <OnboardingShell
       step={1}
       totalSteps={ONBOARDING_TOTAL_STEPS}
-      eyebrow="Your gaming taste"
-      title="Tell us what you enjoy playing"
-      description="Choose up to five genres. PlayNext will combine your choices with your mood, available time, gaming history and current preferences."
+      eyebrow="Choose your taste"
+      title="What do you reach for?"
+      description="Choose up to five genres. This gives your first recommendations a useful starting point."
       nextLabel="Continue"
       nextDisabled={selectedCount === 0 || loading}
       loading={loading}
@@ -125,18 +111,8 @@ export default function GenresPage() {
             <strong>{selectedCount}</strong>/ {selectionLimit} selected
           </span>
 
-          <span
-            className={`genre-selection-remaining ${
-              reachedLimit ? "genre-selection-complete" : ""
-            }`}
-          >
-            {reachedLimit
-              ? "Ready to continue"
-              : `Choose ${remainingCount} more`}
-          </span>
-
-          <span className="genre-selection-edit">
-            You can change these later.
+          <span className={`genre-selection-remaining ${reachedLimit ? "genre-selection-complete" : ""}`}>
+            {reachedLimit ? "All set" : `${remainingCount} remaining`}
           </span>
         </div>
       }

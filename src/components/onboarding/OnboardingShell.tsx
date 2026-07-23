@@ -29,10 +29,10 @@ export default function OnboardingShell({
   nextDisabled = false,
   loading = false,
   selectionStatus,
-  eyebrow = "Your gaming taste",
+  eyebrow = "Set up PlayNext",
 }: OnboardingShellProps) {
-  const completedSteps = step - 1;
-  const progress = (completedSteps / totalSteps) * 100;
+  const progress = (step / totalSteps) * 100;
+  const steps = ["Taste", "Platforms", "Library"];
 
   return (
     <main className="onboarding-page">
@@ -45,13 +45,26 @@ export default function OnboardingShell({
 
       <div className="onboarding-shell">
         <div className={`onboarding-card ${step === 3 ? "onboarding-card-collection" : ""}`}>
+          <aside className="onboarding-rail" aria-label="Setup progress">
+            <div>
+              <span className="onboarding-rail-kicker">Personal setup</span>
+              <h2>Make every answer feel like yours.</h2>
+              <p>Three quick steps give PlayNext a useful starting point. You can change everything later.</p>
+            </div>
+            <ol>
+              {steps.slice(0, totalSteps).map((label, index) => {
+                const number = index + 1;
+                const state = number < step ? "is-complete" : number === step ? "is-current" : "";
+                return <li key={label} className={state}><span>{number < step ? "✓" : number}</span><div><strong>{label}</strong><small>{number === 1 ? "What you enjoy" : number === 2 ? "Where you play" : "Games you know"}</small></div></li>;
+              })}
+            </ol>
+          </aside>
+
           <div className="onboarding-card-inner">
             <div className="onboarding-card-header">
               <div className="onboarding-hero-meta">
                 <span className="onboarding-eyebrow">{eyebrow}</span>
-                <span className="onboarding-step-pill">
-                  Step {step} of {totalSteps}
-                </span>
+                <span className="onboarding-step-pill">Step {step} of {totalSteps}</span>
               </div>
 
               <h1 className="onboarding-title">{title}</h1>
@@ -60,19 +73,8 @@ export default function OnboardingShell({
                 <p className="onboarding-description">{description}</p>
               )}
 
-              <div className="onboarding-progress-summary">
-                <div className="onboarding-progress-copy">
-                  <span className="onboarding-progress-label">
-                    Onboarding progress
-                  </span>
-                  <strong>{Math.round(progress)}%</strong>
-                </div>
-                <div className="onboarding-progress">
-                  <div
-                    className="onboarding-progress-fill"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
+              <div className="onboarding-progress" aria-label={`Step ${step} of ${totalSteps}`}>
+                <div className="onboarding-progress-fill" style={{ width: `${progress}%` }} />
               </div>
             </div>
 
@@ -96,7 +98,7 @@ export default function OnboardingShell({
                   disabled={nextDisabled || loading}
                   className="onboarding-button-primary"
                 >
-                  {loading ? "Saving..." : nextLabel}
+                  {loading ? "One moment…" : nextLabel}
                 </button>
               )}
             </div>

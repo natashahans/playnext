@@ -4,18 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  BarChart3,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
+  ChevronRight,
   Clock3,
   Compass,
   Gamepad2,
-  History,
   Library,
   MessageSquareText,
   Search,
   Sparkles,
+  X,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -49,13 +48,6 @@ type HistoryItem = {
   score_breakdown: { category?: string; label: string; points: number; detail?: string }[] | null;
 };
 
-type HistoryTotals = {
-  total: number;
-  discovery: number;
-  feedback: number;
-  liked: number;
-};
-
 const feedbackLabels: Record<string, string> = {
   liked: "Great match",
   not_in_mood: "Not my mood",
@@ -76,12 +68,6 @@ function latestPrompt(input: string | undefined) {
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [historyTotals, setHistoryTotals] = useState<HistoryTotals>({
-    total: 0,
-    discovery: 0,
-    feedback: 0,
-    liked: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [loadMoreError, setLoadMoreError] = useState("");
@@ -90,6 +76,24 @@ export default function HistoryPage() {
   const [feedbackFilter, setFeedbackFilter] = useState<FeedbackFilter>("all");
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [detailItem, setDetailItem] = useState<HistoryItem | null>(null);
+
+  useEffect(() => {
+    if (!detailItem) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setDetailItem(null);
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [detailItem]);
 
   useEffect(() => {
     let active = true;
@@ -103,8 +107,7 @@ export default function HistoryPage() {
         return;
       }
 
-      const [rowsResult, totalResult, discoveryResult, feedbackResult, likedResult] = await Promise.all([
-        supabase
+      const rowsResult = await supabase
           .from("recommendations")
           .select(`
             id,
@@ -125,26 +128,14 @@ export default function HistoryPage() {
           `)
           .eq("user_id", userData.user.id)
           .order("created_at", { ascending: false })
-          .range(0, HISTORY_PAGE_SIZE - 1),
-        supabase.from("recommendations").select("id", { count: "exact", head: true }).eq("user_id", userData.user.id),
-        supabase.from("recommendation_sessions").select("id", { count: "exact", head: true }).eq("user_id", userData.user.id).eq("recommendation_mode", "discovery"),
-        supabase.from("feedback").select("id", { count: "exact", head: true }).eq("user_id", userData.user.id),
-        supabase.from("feedback").select("id", { count: "exact", head: true }).eq("user_id", userData.user.id).eq("feedback_type", "liked"),
-      ]);
+          .range(0, HISTORY_PAGE_SIZE - 1);
 
       if (!active) return;
 
-      const countError = totalResult.error || discoveryResult.error || feedbackResult.error || likedResult.error;
-      if (rowsResult.error || countError) setErrorMessage("We couldn’t load your recommendation history.");
+      if (rowsResult.error) setErrorMessage("We couldn’t load your recommendation history.");
       else {
         const rows = (rowsResult.data ?? []) as unknown as HistoryItem[];
         setHistory(rows);
-        setHistoryTotals({
-          total: totalResult.count ?? rows.length,
-          discovery: discoveryResult.count ?? 0,
-          feedback: feedbackResult.count ?? 0,
-          liked: likedResult.count ?? 0,
-        });
         setHasMore(rows.length === HISTORY_PAGE_SIZE);
       }
       setLoading(false);
@@ -153,14 +144,6 @@ export default function HistoryPage() {
     fetchHistory();
     return () => { active = false; };
   }, []);
-
-  const summary = useMemo(() => {
-    const averageScore = history.length
-      ? Math.round(history.reduce((total, item) => total + item.score, 0) / history.length)
-      : 0;
-
-    return { ...historyTotals, averageScore };
-  }, [history, historyTotals]);
 
   const filteredHistory = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -236,28 +219,19 @@ export default function HistoryPage() {
     <div className="lib-page history-v2">
       <header className="lib-page-header">
         <div>
-          <span className="lib-kicker"><History size={14} /> Decision history</span>
-          <h1>Every recommendation, with the reasoning intact.</h1>
-          <p>Review the context behind past decisions, inspect their scores, and see how your feedback is shaping PlayNext.</p>
+          <h1>History</h1>
         </div>
         <Button href="/dashboard/recommend"><Sparkles size={15} /> Make a new decision</Button>
       </header>
 
       {history.length === 0 ? (
         <Card className="lib-empty-state">
-          <span><Clock3 size={27} /></span><h2>Your decision journal starts here</h2>
-          <p>Completed recommendations will appear here with their context, explanation and feedback.</p>
+          <span><Clock3 size={27} /></span><h2>No recommendations yet</h2>
+          <p>Your completed recommendations will appear here.</p>
           <Button href="/dashboard/recommend">Get your first recommendation</Button>
         </Card>
       ) : (
         <>
-          <section className="history-v2-summary" aria-label="History overview">
-            <article><span><History size={17} /></span><div><small>Total decisions</small><strong>{summary.total}</strong><p>Recommendations recorded</p></div></article>
-            <article><span><BarChart3 size={17} /></span><div><small>Recent average fit</small><strong>{summary.averageScore}%</strong><p>Across currently loaded decisions</p></div></article>
-            <article><span><Compass size={17} /></span><div><small>New discoveries</small><strong>{summary.discovery}</strong><p>Outside your collection</p></div></article>
-            <article><span><MessageSquareText size={17} /></span><div><small>Feedback given</small><strong>{summary.feedback}</strong><p>{summary.liked} marked great match</p></div></article>
-          </section>
-
           <section className="history-v2-controls">
             <label className="lib-search-box"><Search size={17} /><span className="sr-only">Search history</span><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search games, genres or session context" /></label>
             <label className="lib-select-box"><Compass size={16} /><span className="sr-only">Filter by recommendation source</span><select value={modeFilter} onChange={(event) => setModeFilter(event.target.value as ModeFilter)}><option value="all">All sources</option><option value="collection">My collection</option><option value="discovery">New discoveries</option></select></label>
@@ -265,7 +239,7 @@ export default function HistoryPage() {
           </section>
 
           <div className="lib-results-heading">
-            <div><span>Decision journal</span><h2>{filteredHistory.length} {filteredHistory.length === 1 ? "entry" : "entries"}</h2></div>
+            <div><h2>{filteredHistory.length} {filteredHistory.length === 1 ? "recommendation" : "recommendations"}</h2></div>
             {(searchQuery || modeFilter !== "all" || feedbackFilter !== "all") && <button type="button" onClick={clearFilters}>Clear filters</button>}
           </div>
 
@@ -297,15 +271,6 @@ export default function HistoryPage() {
                       </div>
 
                       <blockquote>“{latestPrompt(session?.user_input)}”</blockquote>
-                      <p className="history-v2-explanation">{item.explanation}</p>
-
-                      <div className="history-v2-context">
-                        {session?.mood && session.mood !== "unknown" && <span>Mood <strong>{session.mood}</strong></span>}
-                        {session?.available_time && <span>Time <strong>{session.available_time} min</strong></span>}
-                        {session?.energy_level && session.energy_level !== "unknown" && <span>Energy <strong>{session.energy_level}</strong></span>}
-                        {session?.desired_experience && <span>Wanted <strong>{session.desired_experience}</strong></span>}
-                      </div>
-
                       <div className="history-v2-footer">
                         <span className={feedback ? `history-feedback history-feedback-${feedback.feedback_type}` : "history-feedback"}>
                           {feedback ? <CheckCircle2 size={13} /> : <MessageSquareText size={13} />}
@@ -314,19 +279,10 @@ export default function HistoryPage() {
                         {game?.slug && <Link href={`/dashboard/search/${game.slug}`}>View game details</Link>}
                       </div>
 
-                      {item.score_breakdown && item.score_breakdown.length > 0 && (
-                        <details className="history-v2-details">
-                          <summary>View score breakdown <ChevronDown size={15} /></summary>
-                          <div>
-                            {item.score_breakdown.map((scoreItem, index) => (
-                              <article key={`${scoreItem.label}-${index}`}>
-                                <span>{scoreItem.category ?? scoreItem.label}</span>
-                                <strong className={scoreItem.points >= 0 ? "score-positive" : "score-negative"}>{scoreItem.points >= 0 ? "+" : ""}{scoreItem.points}</strong>
-                                <p>{scoreItem.detail ?? scoreItem.label}</p>
-                              </article>
-                            ))}
-                          </div>
-                        </details>
+                      {(item.explanation || (item.score_breakdown && item.score_breakdown.length > 0)) && (
+                        <button type="button" className="history-v2-details-button" onClick={() => setDetailItem(item)}>
+                          View match details <ChevronRight size={15} aria-hidden="true" />
+                        </button>
                       )}
                     </div>
                   </article>
@@ -344,6 +300,56 @@ export default function HistoryPage() {
           )}
         </>
       )}
+
+      {detailItem && (
+        <HistoryDetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+      )}
+    </div>
+  );
+}
+
+function HistoryDetailModal({ item, onClose }: { item: HistoryItem; onClose: () => void }) {
+  const game = one(item.games);
+  const session = one(item.recommendation_sessions);
+
+  return (
+    <div className="history-detail-modal" role="dialog" aria-modal="true" aria-labelledby="history-detail-title" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section>
+        <header>
+          <div>
+            <span>Recommendation breakdown</span>
+            <h2 id="history-detail-title">Why {game?.title ?? "this game"} matched</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close match details"><X size={18} /></button>
+        </header>
+
+        <div className="history-detail-content">
+          <p>{item.explanation || "This recommendation was selected from the strongest matching signals available for that session."}</p>
+
+          <div className="history-detail-context">
+            {session?.mood && session.mood !== "unknown" && <span><small>Mood</small><strong>{session.mood}</strong></span>}
+            {session?.available_time && <span><small>Time</small><strong>{session.available_time} min</strong></span>}
+            {session?.energy_level && session.energy_level !== "unknown" && <span><small>Energy</small><strong>{session.energy_level}</strong></span>}
+            {session?.desired_experience && <span><small>Wanted</small><strong>{session.desired_experience}</strong></span>}
+          </div>
+
+          {item.score_breakdown && item.score_breakdown.length > 0 && (
+            <div className="history-detail-score-grid">
+              {item.score_breakdown.map((scoreItem, index) => (
+                <article key={`${scoreItem.label}-${index}`}>
+                  <div>
+                    <span>{scoreItem.category ?? scoreItem.label}</span>
+                    <strong className={scoreItem.points >= 0 ? "score-positive" : "score-negative"}>{scoreItem.points >= 0 ? "+" : ""}{scoreItem.points}</strong>
+                  </div>
+                  <p>{scoreItem.detail ?? scoreItem.label}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

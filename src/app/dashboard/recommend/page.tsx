@@ -1,28 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   ArrowRight,
   Bot,
   CheckCircle2,
-  ChevronDown,
   Clock3,
   Compass,
   Gamepad2,
   Library,
   RotateCcw,
   Send,
-  ShieldCheck,
   Sparkles,
   UserRound,
+  X,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import FeedbackButtons from "@/components/recommendations/FeedbackButtons";
 import AddRecommendedGameButton from "@/components/recommendations/AddRecommendedGameButton";
 import { assessRecommendationDecision, scoreGames } from "@/lib/recommendationEngine";
-import type { RawgGame } from "@/lib/rawg";
+import type { GameDetailPayload, RawgGame } from "@/lib/rawg";
 import type {
   FeedbackGameSnapshot,
   PreviousFeedback,
@@ -41,12 +40,18 @@ import type {
 import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import { saveCatalogueGame } from "@/lib/catalogue-client";
 import {
-  clearDecisionSession,
   initialDecisionMessage,
   loadDecisionSession,
   saveDecisionSession,
+  type DecisionChatMessage,
+  type RecommendationTurn,
   type StoredDecisionState,
 } from "@/lib/decision-session";
+import {
+  answerRecommendationFollowUp,
+  classifyRecommendationFollowUp,
+  isSimpleReplacementRequest,
+} from "@/lib/recommendation/follow-up";
 
 type Relation<T> = T | T[] | null;
 
@@ -81,7 +86,7 @@ function one<T>(relation: Relation<T>) {
   return Array.isArray(relation) ? relation[0] : relation;
 }
 
-function createMessage(role: "assistant" | "user", content: string): IntentChatMessage {
+function createMessage(role: "assistant" | "user", content: string): DecisionChatMessage {
   return {
     id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     role,
@@ -89,9 +94,18 @@ function createMessage(role: "assistant" | "user", content: string): IntentChatM
   };
 }
 
+function withCurrentGameExcluded(intent: ExtractedIntent, game: ScoredGame | null) {
+  if (!game) return intent;
+
+  return {
+    ...intent,
+    excludedGames: Array.from(new Set([...(intent.excludedGames ?? []), game.title])),
+  };
+}
+
 export default function RecommendPage() {
   const [mode, setMode] = useState<RecommendationMode>("collection");
-  const [messages, setMessages] = useState<IntentChatMessage[]>([initialDecisionMessage("collection")]);
+  const [messages, setMessages] = useState<DecisionChatMessage[]>([initialDecisionMessage("collection")]);
   const [draft, setDraft] = useState("");
   const [interpreting, setInterpreting] = useState(false);
   const [ranking, setRanking] = useState(false);
@@ -100,13 +114,13 @@ export default function RecommendPage() {
   const [recommendedGame, setRecommendedGame] = useState<ScoredGame | null>(null);
   const [recommendationId, setRecommendationId] = useState<string | null>(null);
   const [evaluatedCount, setEvaluatedCount] = useState(0);
+  const [scoreDetailsTurn, setScoreDetailsTurn] = useState<RecommendationTurn | null>(null);
   const [storageReady, setStorageReady] = useState(false);
-  const conversationEndRef = useRef<HTMLDivElement>(null);
-  const recommendationRef = useRef<HTMLElement>(null);
-  const chatCardRef = useRef<HTMLElement>(null);
+  const chatThreadRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
     const timer = window.setTimeout(() => {
       try {
         const saved = loadDecisionSession();
@@ -149,17 +163,25 @@ export default function RecommendPage() {
     evaluatedCount,
   ]);
 
-  useEffect(() => {
-    conversationEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [messages, interpreting]);
+  useLayoutEffect(() => {
+    if (!storageReady) return;
+
+    const thread = chatThreadRef.current;
+    if (!thread) return;
+
+    thread.scrollTop = thread.scrollHeight;
+  }, [storageReady, messages.at(-1)?.id]);
 
   useEffect(() => {
-    if (recommendedGame) {
-      window.setTimeout(() => {
-        recommendationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 120);
+    if (!scoreDetailsTurn) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setScoreDetailsTurn(null);
     }
-  }, [recommendedGame]);
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [scoreDetailsTurn]);
 
   async function createRecommendation(
     intent: ExtractedIntent,
@@ -317,8 +339,6 @@ export default function RecommendPage() {
 
       if (assessment.shouldClarify && userTurnCount < 2 && assessment.question) {
         setMessages((current) => [...current, createMessage("assistant", assessment.question!)]);
-        setRecommendedGame(null);
-        setRecommendationId(null);
         setEvaluatedCount(candidateGames.length);
         return;
       }
@@ -378,12 +398,22 @@ export default function RecommendPage() {
       setRecommendedGame(bestGame);
       setRecommendationId(recommendationData.id);
       setEvaluatedCount(candidateGames.length);
+      const recommendationTurn: RecommendationTurn = {
+        game: bestGame,
+        recommendationId: recommendationData.id,
+        evaluatedCount: candidateGames.length,
+        mode,
+        availableTime: intent.availableTime,
+      };
       setMessages((current) => [
         ...current,
-        createMessage(
-          "assistant",
-          `I evaluated ${candidateGames.length} ${mode === "collection" ? "games from your collection" : "new discoveries outside your collection"} using your live context, saved preferences, previous feedback and recommendation history. ${bestGame.title} is the strongest ${bestGame.confidenceBand === "low" ? "provisional " : ""}match with ${bestGame.selectionConfidence}% decision confidence.`
-        ),
+        {
+          ...createMessage(
+            "assistant",
+            `${bestGame.title} is the strongest match for what you described. I checked ${candidateGames.length} ${mode === "collection" ? "games in your library" : "new discoveries"} before choosing it.`
+          ),
+          recommendation: recommendationTurn,
+        },
       ]);
     } finally {
       setRanking(false);
@@ -401,16 +431,60 @@ export default function RecommendPage() {
     setMessages(nextMessages);
     setDraft("");
     setErrorMessage("");
-    setRecommendedGame(null);
-    setRecommendationId(null);
-    setEvaluatedCount(0);
     setInterpreting(true);
 
     try {
+      if (recommendedGame) {
+        const followUpKind = classifyRecommendationFollowUp(content);
+
+        if (followUpKind !== "change") {
+          let description: string | null = null;
+
+          if (followUpKind === "about" && recommendedGame.slug) {
+            try {
+              const detailsResponse = await authenticatedFetch(
+                `/api/games/${encodeURIComponent(recommendedGame.slug)}`
+              );
+              if (detailsResponse.ok) {
+                const details = (await detailsResponse.json()) as GameDetailPayload;
+                description = details.game.description_raw;
+              }
+            } catch {
+              // The grounded catalogue fields below still provide a safe fallback.
+            }
+          }
+
+          const answer = answerRecommendationFollowUp(
+            followUpKind,
+            recommendedGame,
+            description
+          );
+          setMessages([...nextMessages, createMessage("assistant", answer)]);
+          setInterpreting(false);
+          return;
+        }
+
+        if (extractedIntent && isSimpleReplacementRequest(content)) {
+          setInterpreting(false);
+          await createRecommendation(
+            withCurrentGameExcluded(extractedIntent, recommendedGame),
+            nextMessages
+          );
+          return;
+        }
+      }
+
+      const intentMessages = nextMessages
+        .filter((message) => !message.recommendation)
+        .map(({ id, role, content: messageContent }) => ({
+          id,
+          role,
+          content: messageContent,
+        }));
       const response = await authenticatedFetch("/api/extract-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ messages: intentMessages }),
       });
 
       if (!response.ok) throw new Error("PlayNext could not understand that message.");
@@ -423,7 +497,8 @@ export default function RecommendPage() {
       setExtractedIntent(result.intent);
       setInterpreting(false);
 
-      if (result.status === "ready") {
+      const assistantIsAsking = result.assistantMessage.trim().endsWith("?");
+      if (result.status === "ready" && !assistantIsAsking) {
         await createRecommendation(result.intent, completedConversation);
       }
     } catch (error) {
@@ -433,25 +508,7 @@ export default function RecommendPage() {
     }
   }
 
-  function resetConversation() {
-    clearDecisionSession();
-    setMessages([initialDecisionMessage(mode)]);
-    setDraft("");
-    setErrorMessage("");
-    setExtractedIntent(null);
-    setRecommendedGame(null);
-    setRecommendationId(null);
-    setEvaluatedCount(0);
-  }
-
-  function continueConversation() {
-    chatCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    window.setTimeout(() => composerRef.current?.focus(), 260);
-  }
-
-  function changeMode(nextMode: RecommendationMode) {
-    if (nextMode === mode) return;
-    setMode(nextMode);
+  function resetConversation(nextMode: RecommendationMode) {
     setMessages([initialDecisionMessage(nextMode)]);
     setDraft("");
     setErrorMessage("");
@@ -459,49 +516,129 @@ export default function RecommendPage() {
     setRecommendedGame(null);
     setRecommendationId(null);
     setEvaluatedCount(0);
+    setScoreDetailsTurn(null);
+    window.setTimeout(() => composerRef.current?.focus(), 0);
   }
 
-  const contextItems = extractedIntent
-    ? [
-        ["Mood", extractedIntent.mood === "unknown" ? "Open" : extractedIntent.mood],
-        ["Time", extractedIntent.availableTime ? `${extractedIntent.availableTime} min` : "Flexible"],
-        ["Energy", extractedIntent.energyLevel === "unknown" ? "Open" : extractedIntent.energyLevel],
-        ["Experience", extractedIntent.desiredExperiences.join(", ") || "Open"],
-        ["Difficulty", extractedIntent.difficultyPreference === "unknown" ? "Any" : extractedIntent.difficultyPreference],
-        ["Pace", extractedIntent.sessionPace === "unknown" ? "Any" : extractedIntent.sessionPace],
-      ]
-    : [];
+  function changeMode(nextMode: RecommendationMode) {
+    if (nextMode === mode) return;
+    setMode(nextMode);
+    resetConversation(nextMode);
+  }
+
+  function startNewChat() {
+    if (interpreting || ranking) return;
+    resetConversation(mode);
+  }
+
+  async function findAnotherRecommendation() {
+    if (!extractedIntent || ranking || interpreting) return;
+    setRecommendedGame(null);
+    setRecommendationId(null);
+    setScoreDetailsTurn(null);
+    setErrorMessage("");
+    const acknowledgement = createMessage(
+      "assistant",
+      "Got it. I’ll use that feedback and look for a better fit."
+    );
+    const nextMessages = [...messages, acknowledgement];
+    setMessages(nextMessages);
+    try {
+      await createRecommendation(
+        withCurrentGameExcluded(extractedIntent, recommendedGame),
+        nextMessages
+      );
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "A different match could not be found.");
+    }
+  }
+
+  function renderRecommendationTurn(message: DecisionChatMessage) {
+    const turn = message.recommendation;
+    if (!turn) return null;
+    const game = turn.game;
+
+    return (
+      <div key={message.id} className="ai-message ai-message-assistant ai-message-result ai-recommendation-turn">
+        <span><Sparkles size={15} /></span>
+        <div className="ai-inline-recommendation">
+          <div className="ai-inline-recommendation-art">
+            {game.background_image ? (
+              <Image src={game.background_image} alt="" fill sizes="(max-width: 680px) 88vw, 190px" className="object-cover" />
+            ) : (
+              <div className="game-artwork-placeholder"><Gamepad2 size={26} /></div>
+            )}
+            <div className="ai-inline-art-scrim" />
+            <span><CheckCircle2 size={12} /> Best of {turn.evaluatedCount}</span>
+          </div>
+
+          <div className="ai-inline-recommendation-body">
+            <div className="ai-inline-recommendation-heading">
+              <div>
+                <span>{turn.mode === "collection" ? "From your library" : "New discovery"}</span>
+                <h2>{game.title}</h2>
+              </div>
+              <div className="ai-match-score" aria-label={`PlayNext match score ${game.score} out of 100`}>
+                <strong>{game.score}</strong><span>match</span>
+              </div>
+            </div>
+
+            <div className="ai-recommendation-meta">
+              {game.genres?.slice(0, 2).map((genre) => <Badge key={genre}>{genre}</Badge>)}
+              {turn.availableTime && <Badge><Clock3 size={11} /> {turn.availableTime} min</Badge>}
+            </div>
+
+            <p className="ai-recommendation-summary">{game.explanation}</p>
+
+            <div className="ai-inline-actions">
+              <button type="button" className="ai-score-trigger" onClick={() => setScoreDetailsTurn(turn)}>
+                Why this recommendation <ArrowRight size={14} />
+              </button>
+              {game.slug && (
+                <Button href={`/dashboard/search/${game.slug}`} variant="ghost" className="ai-game-details-link">
+                  Game details <ArrowRight size={14} />
+                </Button>
+              )}
+              {turn.mode === "discovery" && <AddRecommendedGameButton gameId={game.id} />}
+            </div>
+          </div>
+
+          <div className="ai-inline-feedback">
+            <FeedbackButtons recommendationId={turn.recommendationId} onFindAnother={findAnotherRecommendation} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ai-decide-page">
-      <header className="ai-decide-header">
-        <div>
-          <span><Sparkles size={13} aria-hidden="true" /> PlayNext decision assistant</span>
-          <h1>What should you play next?</h1>
-          <p>Describe the kind of session you want. PlayNext will find one focused answer.</p>
-        </div>
-        {(messages.length > 1 || recommendedGame) && (
-          <button type="button" onClick={resetConversation}>
-            <RotateCcw size={14} aria-hidden="true" /> New conversation
-          </button>
-        )}
-      </header>
-
-      <div className="ai-decide-layout">
-        <section className="ai-chat-card" ref={chatCardRef}>
-          <div className="ai-chat-toolbar">
-            <div className="ai-chat-identity">
-              <span><Bot size={17} aria-hidden="true" /></span>
-              <div>
-                <strong>PlayNext AI</strong>
-                <p>{mode === "collection" ? "Choosing from games you already own" : "Discovering a game outside your collection"}</p>
-              </div>
-              <span className="ai-chat-status"><i /> Online</span>
+      <section className="ai-chat-shell" aria-label="PlayNext decision assistant">
+        <div className="ai-chat-toolbar">
+          <div className="ai-chat-identity">
+            <span><Bot size={18} aria-hidden="true" /></span>
+            <div>
+              <strong>PlayNext</strong>
+              {/* <p>Decision assistant</p> */}
             </div>
+          </div>
+
+          <div className="ai-chat-toolbar-actions">
+            <button
+              type="button"
+              className="ai-new-chat-button"
+              onClick={startNewChat}
+              disabled={interpreting || ranking || (messages.length === 1 && !draft && !recommendedGame && !errorMessage)}
+              aria-label="Start a new decision conversation"
+              title="Clear this conversation and start again"
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+              <span>New chat</span>
+            </button>
 
             <div className="ai-source-control">
               <span>Recommend from</span>
-              <div className="ai-source-switch" role="radiogroup" aria-label="Recommendation source">
+              <div className="ai-source-switch" role="radiogroup" aria-label="Choose where PlayNext recommends from">
                 <button
                   type="button"
                   role="radio"
@@ -511,7 +648,7 @@ export default function RecommendPage() {
                   disabled={interpreting || ranking}
                   title="Recommend only games already in your collection"
                 >
-                  <Library size={14} aria-hidden="true" /> My collection
+                  <Library size={14} aria-hidden="true" /> My library
                 </button>
                 <button
                   type="button"
@@ -527,14 +664,28 @@ export default function RecommendPage() {
               </div>
             </div>
           </div>
+        </div>
 
-          <div className={`ai-chat-thread ${messages.length === 1 ? "is-empty" : ""}`} aria-live="polite">
-            {messages.map((message) => (
-              <div key={message.id} className={`ai-message ai-message-${message.role}`}>
+        <div ref={chatThreadRef} className={`ai-chat-thread ${messages.length === 1 ? "is-opening" : ""}`} aria-live="polite">
+            {messages.map((message, index) => message.recommendation
+              ? renderRecommendationTurn(message)
+              : (
+              <div key={message.id} className={`ai-message ai-message-${message.role} ${index === 0 ? "ai-message-opening" : ""}`}>
                 <span>{message.role === "assistant" ? <Bot size={15} /> : <UserRound size={15} />}</span>
                 <div>
-                  <small>{message.role === "assistant" ? "PlayNext AI" : "You"}</small>
-                  <p>{message.content}</p>
+                  <small>{message.role === "assistant" ? "PlayNext" : "You"}</small>
+                  <div className="ai-message-bubble">
+                    {index === 0 && (
+                      <h1>{mode === "collection" ? "What are you in the mood for?" : "What would you like to discover?"}</h1>
+                    )}
+                    <p>
+                      {index === 0
+                        ? mode === "collection"
+                          ? "Share your mood, the time you have, and the experience you want. I’ll find the strongest fit in your library."
+                          : "Share your mood, the time you have, and the experience you want. I’ll find something new that fits this session."
+                        : message.content}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -543,7 +694,7 @@ export default function RecommendPage() {
               <div className="ai-message ai-message-assistant">
                 <span><Bot size={15} /></span>
                 <div>
-                  <small>PlayNext AI</small>
+                  <small>PlayNext</small>
                   <div className="ai-typing" aria-label="Interpreting your message"><i /><i /><i /></div>
                 </div>
               </div>
@@ -558,185 +709,118 @@ export default function RecommendPage() {
                 </div>
               </div>
             )}
-            <div ref={conversationEndRef} />
-          </div>
 
-          <div className="ai-chat-composer-wrap">
-            {messages.length === 1 && (
-              <div className="ai-chat-suggestions">
-                {promptSuggestions.map((suggestion) => (
-                  <button type="button" key={suggestion} onClick={() => setDraft(suggestion)}>{suggestion}</button>
-                ))}
+            {errorMessage && (
+              <div className="ai-decide-error" role="alert">
+                <strong>That decision could not be completed.</strong>
+                <span>{errorMessage}</span>
               </div>
             )}
+            <div
+              className="ai-chat-scroll-anchor"
+              aria-hidden="true"
+            />
+            <div aria-hidden="true" className="ai-chat-scroll-anchor" />
 
-            {recommendedGame && (
-              <div className="ai-refine-hint">
-                <Sparkles size={14} aria-hidden="true" />
-                <span>Want a different answer? Continue the conversation and tell PlayNext what to change.</span>
-              </div>
-            )}
+        </div>
 
-            <form className="ai-chat-composer" onSubmit={handleSubmit}>
-              <textarea
-                ref={composerRef}
-                value={draft}
-                onFocus={() => {
-                  window.setTimeout(() => {
-                    composerRef.current?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "center",
-                    });
-                  }, 180);
-                }}
-                onChange={(event) => {
-                  setDraft(event.target.value);
-                  setErrorMessage("");
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-                placeholder={recommendedGame
-                  ? "Refine it — for example, something shorter or less intense…"
-                  : "Describe your mood, time and energy…"}
-                maxLength={700}
-                rows={2}
-                disabled={interpreting || ranking}
-                aria-label="Message PlayNext AI"
-              />
-              <div>
-                <span>Enter to send · Shift + Enter for a new line</span>
-                <button type="submit" disabled={!draft.trim() || interpreting || ranking} aria-label="Send message">
-                  <Send size={16} aria-hidden="true" />
-                </button>
-              </div>
-            </form>
-          </div>
-        </section>
-
-        <aside className="ai-context-card">
-          <div className="ai-context-heading">
-            <span><ShieldCheck size={17} aria-hidden="true" /></span>
-            <div><small>What PlayNext understands</small><strong>Your session context</strong><p>These details update as you chat.</p></div>
-          </div>
-
-          {extractedIntent ? (
-            <>
-              <div className="ai-context-confidence">
-                <div><span>Interpretation confidence</span><strong>{Math.round(extractedIntent.confidence * 100)}%</strong></div>
-                <i><b style={{ width: `${Math.round(extractedIntent.confidence * 100)}%` }} /></i>
-              </div>
-              <div className="ai-context-grid">
-                {contextItems.map(([label, value]) => (
-                  <div key={label}><span>{label}</span><strong>{value}</strong></div>
-                ))}
-              </div>
-              {(extractedIntent.preferredGenres.length > 0 || extractedIntent.avoidedGenres.length > 0) && (
-                <div className="ai-context-genres">
-                  {extractedIntent.preferredGenres.map((genre) => <Badge key={`prefer-${genre}`}>{genre}</Badge>)}
-                  {extractedIntent.avoidedGenres.map((genre) => <Badge key={`avoid-${genre}`}>Avoid {genre}</Badge>)}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="ai-context-empty">
-              <Clock3 size={22} aria-hidden="true" />
-              <h3>Waiting for your message</h3>
-              <p>Mood, time, energy and the experience you want will appear here.</p>
+        <div className="ai-chat-composer-wrap">
+          {messages.length === 1 && (
+            <div className="ai-chat-suggestions">
+              {promptSuggestions.map((suggestion) => (
+                <button type="button" key={suggestion} onClick={() => setDraft(suggestion)}>{suggestion}</button>
+              ))}
             </div>
           )}
 
-          <div className="ai-context-source-card">
-            {mode === "collection" ? <Library size={17} /> : <Compass size={17} />}
+          <form className="ai-chat-composer" onSubmit={handleSubmit}>
+            <textarea
+              ref={composerRef}
+              value={draft}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setErrorMessage("");
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+              placeholder={recommendedGame
+                ? "Ask for a different recommendation…"
+                : "Tell me what you feel like playing…"}
+              maxLength={700}
+              rows={1}
+              disabled={interpreting || ranking}
+              aria-label="Message PlayNext AI"
+            />
             <div>
-              <span>Recommendation source</span>
-              <strong>{mode === "collection" ? "Your collection" : "Outside your collection"}</strong>
+              <span>Enter to send</span>
+              <button type="submit" disabled={!draft.trim() || interpreting || ranking} aria-label="Send message">
+                <Send size={16} aria-hidden="true" />
+              </button>
             </div>
-          </div>
-        </aside>
-      </div>
+          </form>
+        </div>
+      </section>
 
-      {errorMessage && (
-        <div className="ai-decide-error" role="alert"><strong>We couldn’t complete the decision.</strong><span>{errorMessage}</span></div>
-      )}
+      {scoreDetailsTurn && (
+        <div className="ai-insight-overlay" role="presentation" onMouseDown={() => setScoreDetailsTurn(null)}>
+          <section className="ai-insight-drawer" role="dialog" aria-modal="true" aria-labelledby="score-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <div><span>Recommendation details</span><h2 id="score-dialog-title">Why this fits</h2></div>
+              <button type="button" onClick={() => setScoreDetailsTurn(null)} aria-label="Close recommendation details"><X aria-hidden="true" /></button>
+            </header>
 
-      {recommendedGame && extractedIntent && (
-        <section className="ai-recommendation" ref={recommendationRef}>
-          <div className="ai-recommendation-artwork">
-            {recommendedGame.background_image ? (
-              <Image src={recommendedGame.background_image} alt="" fill priority sizes="(max-width: 900px) 100vw, 45vw" className="object-cover" />
-            ) : (
-              <div className="game-artwork-placeholder"><Gamepad2 size={34} /></div>
-            )}
-            <div className="ai-recommendation-artwork-scrim" />
-            <span><CheckCircle2 size={14} /> Strongest of {evaluatedCount} {mode === "collection" ? "owned games" : "new discoveries"}</span>
-          </div>
-
-          <div className="ai-recommendation-content">
-            <div className="ai-recommendation-heading">
-              <div><span>{mode === "collection" ? "From your collection" : "New discovery"}</span><h2>{recommendedGame.title}</h2></div>
-              <div className="ai-match-score" aria-label={`PlayNext match score ${recommendedGame.score} out of 100`}>
-                <strong>{recommendedGame.score}</strong>
-                <span>match score</span>
-              </div>
-            </div>
-
-            <div className="ai-recommendation-meta">
-              {recommendedGame.genres?.slice(0, 4).map((genre) => <Badge key={genre}>{genre}</Badge>)}
-              {extractedIntent.availableTime && <Badge><Clock3 size={11} /> {extractedIntent.availableTime} min</Badge>}
-            </div>
-
-            <div className="ai-recommendation-explanation">
-              <Sparkles size={18} aria-hidden="true" />
-              <p>{recommendedGame.explanation}</p>
-            </div>
-
-            <p className="ai-decision-confidence">
-              Decision confidence: <strong>{recommendedGame.selectionConfidence}%</strong>
-              {recommendedGame.scoreMargin > 0 ? ` · ${recommendedGame.scoreMargin}-point lead over the next eligible match` : " · only one eligible option was available"}
-            </p>
-
-            <div className="ai-match-reasons">
-              {recommendedGame.matchReasons.slice(0, 3).map((reason) => (
-                <div key={reason}><CheckCircle2 size={14} /><span>{reason}</span></div>
-              ))}
-            </div>
-
-            <details className="ai-score-details">
-              <summary>See the complete score <ChevronDown size={15} /></summary>
-              <div>
-                {recommendedGame.scoreBreakdown.map((item) => (
-                  <article key={item.category}>
-                    <div><span>{item.category}</span><strong className={item.points >= 0 ? "score-positive" : "score-negative"}>{item.points >= 0 ? "+" : ""}{item.points}</strong></div>
-                    <h3>{item.label}</h3>
-                    <p>{item.detail}</p>
-                  </article>
-                ))}
-              </div>
-            </details>
-
-            {recommendationId && <FeedbackButtons recommendationId={recommendationId} />}
-
-            {mode === "discovery" && (
-              <div className="ai-discovery-actions">
-                <AddRecommendedGameButton gameId={recommendedGame.id} />
-                {recommendedGame.slug && (
-                  <Button href={`/dashboard/search/${recommendedGame.slug}`} variant="ghost">
-                    View game details <ArrowRight size={14} />
-                  </Button>
+            <div className="ai-insight-content">
+              <div className="ai-insight-game">
+                {scoreDetailsTurn.game.background_image ? (
+                  <Image src={scoreDetailsTurn.game.background_image} alt="" width={84} height={84} />
+                ) : (
+                  <span><Gamepad2 size={22} /></span>
                 )}
+                <div>
+                  <p>{scoreDetailsTurn.mode === "collection" ? "From your library" : "New discovery"}</p>
+                  <h3>{scoreDetailsTurn.game.title}</h3>
+                  <strong>{scoreDetailsTurn.game.score}% match</strong>
+                </div>
               </div>
-            )}
 
-            <div className="ai-recommendation-actions">
-              <Button onClick={continueConversation} variant="secondary"><Sparkles size={14} /> Refine in chat</Button>
-              <Button href="/dashboard/collection" variant="ghost"><Library size={14} /> View collection <ArrowRight size={14} /></Button>
+              <section className="ai-insight-section">
+                <h3>Matched to this session</h3>
+                <div className="ai-insight-reasons">
+                  {scoreDetailsTurn.game.matchReasons.slice(0, 3).map((reason) => (
+                    <div key={reason}><CheckCircle2 size={15} /><span>{reason}</span></div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="ai-insight-section">
+                <div className="ai-insight-section-heading">
+                  <h3>Score breakdown</h3>
+                  <span>{scoreDetailsTurn.evaluatedCount} games checked</span>
+                </div>
+                <div className="ai-insight-score-list">
+                  {scoreDetailsTurn.game.scoreBreakdown.map((item) => (
+                    <article key={item.category}>
+                      <div>
+                        <span>{item.category}</span>
+                        <strong className={item.points >= 0 ? "score-positive" : "score-negative"}>{item.points >= 0 ? "+" : ""}{item.points}</strong>
+                      </div>
+                      <h4>{item.label}</h4>
+                      <p>{item.detail}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <p className="ai-insight-evidence">
+                PlayNext ranked {scoreDetailsTurn.evaluatedCount} {scoreDetailsTurn.mode === "collection" ? "games you own" : "new games"} using this conversation, saved preferences, previous feedback and recommendation history.
+              </p>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       )}
     </div>
   );

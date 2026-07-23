@@ -132,3 +132,44 @@ test("a deterministic explicit exclusion overrides a conflicting model preferenc
   assert.ok(!result.intent.preferredGenres.includes("Horror"));
   assert.ok(result.intent.preferredGenres.includes("RPG"));
 });
+
+test("an explicitly rejected title is captured as a game exclusion", () => {
+  const result = fallbackIntent([
+    user("I have 30 minutes and want something relaxing", "user-1"),
+    user("not Borderlands", "user-2"),
+  ]);
+
+  assert.deepEqual(result.intent.excludedGames, ["Borderlands"]);
+});
+
+test("a later session correction replaces conflicting earlier qualities", () => {
+  const result = fallbackIntent([
+    user("I have 30 minutes and want something relaxing", "user-1"),
+    user("I actually want something aggressive and long. I want story.", "user-2"),
+  ]);
+
+  assert.deepEqual(result.intent.desiredExperiences, ["story"]);
+  assert.equal(result.intent.energyLevel, "high");
+  assert.equal(result.intent.availableTime, 120);
+});
+
+test("qualities inferred from a named comparison stay separate from explicit requests", () => {
+  const result = normalizeChatResponse({
+    status: "ready",
+    assistantMessage: "Understood",
+    intent: {
+      ...emptyIntent(),
+      desiredExperiences: ["story", "exploration"],
+      inferredExperiences: ["story", "exploration"],
+      referenceGames: ["Rime"],
+      confidence: 0.9,
+    },
+  }, [
+    user("I have 30 minutes and want something relaxing", "user-1"),
+    user("Give me another one like Rime", "user-2"),
+  ]);
+
+  assert.deepEqual(result.intent.desiredExperiences, ["relaxing"]);
+  assert.deepEqual(result.intent.inferredExperiences, ["story", "exploration"]);
+  assert.deepEqual(result.intent.referenceGames, ["Rime"]);
+});

@@ -2,61 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Clock3,
-  Compass,
-  Home,
-  Library,
-  Search,
-  Settings,
-} from "lucide-react";
+import { Clock3, Compass, Home, Library, Search } from "lucide-react";
 import AuthLogo from "@/components/auth/AuthLogo";
+import AccountMenu from "@/components/layout/AccountMenu";
 
 const navItems = [
-  { href: "/dashboard", label: "Home", shortLabel: "Home", icon: Home, mobile: true },
-  {
-    href: "/dashboard/collection",
-    label: "My collection",
-    shortLabel: "Library",
-    icon: Library,
-    mobile: true,
-  },
-  {
-    href: "/dashboard/search",
-    label: "Add games",
-    shortLabel: "Add",
-    icon: Search,
-    mobile: true,
-  },
-  {
-    href: "/dashboard/recommend",
-    label: "Decide",
-    shortLabel: "Decide",
-    icon: Compass,
-    mobile: true,
-  },
-  {
-    href: "/dashboard/history",
-    label: "History",
-    shortLabel: "History",
-    icon: Clock3,
-    mobile: true,
-  },
-  {
-    href: "/dashboard/settings",
-    label: "Settings",
-    shortLabel: "Settings",
-    icon: Settings,
-    mobile: false,
-  },
+  { href: "/dashboard", label: "Home", icon: Home },
+  { href: "/dashboard/search", label: "Discover", icon: Search },
+  { href: "/dashboard/recommend", label: "Decide", icon: Compass },
+  { href: "/dashboard/collection", label: "Library", icon: Library },
+  { href: "/dashboard/history", label: "History", icon: Clock3 },
 ];
 
-function isActivePath(pathname: string, href: string) {
-  if (href === "/dashboard") {
-    return pathname === href;
-  }
-
-  return pathname.startsWith(href);
+function isActive(pathname: string, href: string) {
+  return href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 }
 
 export default function Sidebar() {
@@ -65,50 +24,45 @@ export default function Sidebar() {
   return (
     <>
       <aside className="dashboard-sidebar">
-        <Link href="/dashboard" className="dashboard-brand">
+        <Link href="/dashboard" className="dashboard-brand" aria-label="PlayNext home">
           <AuthLogo />
           <span className="dashboard-brand-name">PlayNext</span>
         </Link>
 
-        <nav className="dashboard-nav" aria-label="Dashboard navigation">
-          {navItems.map((item) => {
-            const active = isActivePath(pathname, item.href);
-            const Icon = item.icon;
-
+        <nav className="dashboard-nav" aria-label="Main navigation">
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const active = isActive(pathname, href);
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={href}
+                href={href}
                 aria-current={active ? "page" : undefined}
-                className={`dashboard-nav-item ${
-                  active ? "dashboard-nav-item-active" : ""
-                }`}
+                className={`dashboard-nav-item ${active ? "dashboard-nav-item-active" : ""}`}
               >
                 <Icon aria-hidden="true" />
-                <span>{item.label}</span>
+                <span>{label}</span>
               </Link>
             );
           })}
         </nav>
 
+        <div className="dashboard-sidebar-account">
+          <AccountMenu />
+        </div>
       </aside>
 
-      <nav className="dashboard-mobile-nav" aria-label="Mobile navigation">
-        {navItems.filter((item) => item.mobile).map((item) => {
-          const active = isActivePath(pathname, item.href);
-          const Icon = item.icon;
-
+      <nav className="dashboard-mobile-nav" aria-label="Main navigation">
+        {navItems.map(({ href, label, icon: Icon }) => {
+          const active = isActive(pathname, href);
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={href}
+              href={href}
               aria-current={active ? "page" : undefined}
-              className={`dashboard-mobile-nav-item ${
-                active ? "dashboard-mobile-nav-item-active" : ""
-              }`}
+              className={`dashboard-mobile-nav-item ${active ? "dashboard-mobile-nav-item-active" : ""}`}
             >
               <Icon aria-hidden="true" />
-              <span>{item.shortLabel}</span>
+              <span>{label}</span>
             </Link>
           );
         })}

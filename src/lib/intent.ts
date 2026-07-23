@@ -25,6 +25,21 @@ const KNOWN_GENRES = [
   "Action", "Adventure", "RPG", "Shooter", "Strategy", "Simulation", "Platformer", "Puzzle", "Horror", "Racing", "Sports", "Indie", "Casual", "Arcade", "Family", "Fighting", "Card", "Board Games", "Educational", "Massively Multiplayer",
 ];
 
+const EXPERIENCE_SIGNAL_WORDS: Array<[DesiredExperience, string[]]> = [
+  ["relaxing", ["relax", "chill", "cozy", "cosy", "calm", "peaceful", "unwind"]],
+  ["story", ["story", "narrative", "plot", "characters", "character-driven"]],
+  ["action", ["action", "combat", "fast-paced"]],
+  ["exploration", ["explore", "exploration", "open world", "wander"]],
+  ["challenge", ["challenge", "challenging", "difficult", "hard", "punishing"]],
+  ["social", ["social", "friends", "multiplayer", "co-op"]],
+  ["creative", ["creative", "building", "sandbox"]],
+  ["strategic", ["strategy", "strategic", "tactical"]],
+  ["immersive", ["immersive", "atmospheric", "deep"]],
+  ["funny", ["funny", "comedy", "lighthearted"]],
+  ["scary", ["scary", "horror", "creepy", "tense"]],
+  ["surprise", ["surprise me", "anything", "you choose"]],
+];
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -61,12 +76,14 @@ export function emptyIntent(): ExtractedIntent {
     energyLevel: "unknown",
     desiredExperience: "unknown",
     desiredExperiences: [],
+    inferredExperiences: [],
     difficultyPreference: "unknown",
     sessionPace: "unknown",
     multiplayerPreference: "unknown",
     preferredGenres: [],
     avoidedGenres: [],
     referenceGames: [],
+    excludedGames: [],
     confidence: 0,
     summary: "Open to any suitable game",
   };
@@ -78,6 +95,9 @@ export function normalizeIntent(value: unknown): ExtractedIntent {
     .map((item) => item.toLowerCase())
     .filter((item): item is DesiredExperience => EXPERIENCES.includes(item as DesiredExperience));
   const legacyExperience = cleanString(input.desiredExperience).toLowerCase();
+  const inferredExperiences = stringArray(input.inferredExperiences)
+    .map((item) => item.toLowerCase())
+    .filter((item): item is DesiredExperience => EXPERIENCES.includes(item as DesiredExperience));
 
   if (desiredExperiences.length === 0 && EXPERIENCES.includes(legacyExperience as DesiredExperience)) {
     desiredExperiences.push(legacyExperience as DesiredExperience);
@@ -93,12 +113,14 @@ export function normalizeIntent(value: unknown): ExtractedIntent {
     energyLevel: enumValue(input.energyLevel, ENERGY_LEVELS, "unknown"),
     desiredExperience: desiredExperiences.join(", ") || cleanString(input.desiredExperience, "unknown"),
     desiredExperiences,
+    inferredExperiences,
     difficultyPreference: enumValue(input.difficultyPreference, DIFFICULTIES, "unknown"),
     sessionPace: enumValue(input.sessionPace, PACES, "unknown"),
     multiplayerPreference: enumValue(input.multiplayerPreference, MULTIPLAYER, "unknown"),
     preferredGenres: stringArray(input.preferredGenres, 6),
     avoidedGenres: stringArray(input.avoidedGenres, 6),
     referenceGames: stringArray(input.referenceGames, 5),
+    excludedGames: stringArray(input.excludedGames, 5),
     confidence,
     summary: cleanString(input.summary, "Open to any suitable game"),
   };
@@ -149,13 +171,38 @@ function extractAvoidedGenres(text: string) {
   return Array.from(avoided);
 }
 
+function extractExcludedGames(text: string) {
+  const excluded = new Set<string>();
+  const clauses = text.matchAll(
+    /\b(?:not|avoid|skip|without|anything but|except|do not want|don't want)\s+([a-z0-9][a-z0-9:'’&.\- ]{1,60}?)(?=[,.!?;]|$|\b(?:but|instead|because)\b)/gi
+  );
+  const nonTitles = new Set([
+    "my mood", "in the mood", "interested", "too long", "too difficult",
+    "horror", "action", "adventure", "rpg", "shooter", "strategy", "simulation",
+    "platformer", "puzzle", "racing", "sports", "indie", "casual", "arcade",
+  ]);
+
+  for (const match of clauses) {
+    const candidate = match[1]
+      .replace(/\b(?:the game|game|please|again|this time)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (candidate.length >= 2 && !nonTitles.has(candidate.toLowerCase())) excluded.add(candidate);
+  }
+
+  return Array.from(excluded).slice(0, 5);
+}
+
 export function fallbackIntent(messages: IntentChatMessage[]): IntentChatResponse {
   const userMessages = messages.filter((message) => message.role === "user");
-  const text = userMessages.map((message) => message.content).join(" ").toLowerCase();
-  const latestText = userMessages.at(-1)?.content.toLowerCase() ?? text;
+  const originalText = userMessages.map((message) => message.content).join(" ");
+  const text = originalText.toLowerCase();
+  const latestOriginal = userMessages.at(-1)?.content ?? "";
+  const latestText = latestOriginal.toLowerCase();
   const intent = emptyIntent();
 
   intent.availableTime = extractMinutes(text);
+  const latestMinutes = extractMinutes(latestText);
 
   if (includesAny(text, ["tired", "exhausted", "drained", "sleepy"])) intent.mood = "tired";
   else if (includesAny(text, ["stressed", "overwhelmed", "anxious"])) intent.mood = "stressed";
@@ -170,25 +217,24 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
   else if (includesAny(text, ["high energy", "energetic", "pumped", "intense"])) intent.energyLevel = "high";
   else if (includesAny(text, ["medium energy", "normal energy"])) intent.energyLevel = "medium";
 
-  const experienceSignals: Array<[DesiredExperience, string[]]> = [
-    ["relaxing", ["relax", "chill", "cozy", "cosy", "calm", "peaceful"]],
-    ["story", ["story", "narrative", "plot", "characters"]],
-    ["action", ["action", "combat", "fast-paced"]],
-    ["exploration", ["explore", "exploration", "open world"]],
-    ["challenge", ["challenge", "challenging", "difficult", "hard"]],
-    ["social", ["social", "friends", "multiplayer", "co-op"]],
-    ["creative", ["creative", "building", "sandbox"]],
-    ["strategic", ["strategy", "strategic", "tactical"]],
-    ["immersive", ["immersive", "atmospheric", "deep"]],
-    ["funny", ["funny", "comedy", "lighthearted"]],
-    ["scary", ["scary", "horror", "creepy", "tense"]],
-    ["surprise", ["surprise me", "anything", "you choose"]],
-  ];
-
-  intent.desiredExperiences = experienceSignals
+  intent.desiredExperiences = EXPERIENCE_SIGNAL_WORDS
     .filter(([, signals]) => includesAny(text, signals))
     .map(([experience]) => experience);
+
+  const latestExperiences = EXPERIENCE_SIGNAL_WORDS
+    .filter(([, signals]) => includesAny(latestText, signals))
+    .map(([experience]) => experience);
+  const changesSession = /\b(?:actually|instead|now|rather|change|i want something|give me something)\b/i.test(latestText);
+  if (changesSession && latestExperiences.length > 0) {
+    intent.desiredExperiences = latestExperiences;
+  }
+  if (changesSession && latestMinutes !== null) intent.availableTime = latestMinutes;
   intent.desiredExperience = intent.desiredExperiences.join(", ") || "unknown";
+
+  if (/\b(?:aggressive|pumped|high[- ]energy)\b/i.test(latestText)) intent.energyLevel = "high";
+  if (changesSession && /\b(?:long|lengthy|deep session)\b/i.test(latestText) && extractMinutes(latestText) === null) {
+    intent.availableTime = 120;
+  }
 
   if (includesAny(text, ["easy", "forgiving", "no stress"])) intent.difficultyPreference = "easy";
   else if (includesAny(text, ["hard", "difficult", "challenge", "punishing"])) intent.difficultyPreference = "hard";
@@ -203,6 +249,7 @@ export function fallbackIntent(messages: IntentChatMessage[]): IntentChatRespons
   else if (includesAny(text, ["either solo or multiplayer", "either is fine", "no preference"])) intent.multiplayerPreference = "either";
 
   intent.avoidedGenres = extractAvoidedGenres(text).slice(0, 6);
+  intent.excludedGames = extractExcludedGames(originalText);
 
   const avoided = new Set(intent.avoidedGenres.map((genre) => genre.toLowerCase()));
   intent.preferredGenres = KNOWN_GENRES.filter((genre) => {
@@ -266,21 +313,34 @@ export function normalizeChatResponse(value: unknown, messages: IntentChatMessag
   const groundedModelGenres = modelIntent.preferredGenres.filter((genre) =>
     userText.includes(genre.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim())
   );
+  const explicitExperiences = fallback.intent.desiredExperiences;
+  const groundedExcludedGames = (modelIntent.excludedGames ?? []).filter((game) => {
+    const target = game.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    return target.length >= 2 && userText.includes(target);
+  });
+  const inferredExperiences = groundedReferences.length > 0
+    ? Array.from(new Set([
+      ...(modelIntent.inferredExperiences ?? []),
+      ...modelIntent.desiredExperiences.filter((item) => !explicitExperiences.includes(item)),
+    ])).slice(0, 2)
+    : [];
   const intent = normalizeIntent({
     ...modelIntent,
     availableTime: fallback.intent.availableTime ?? modelIntent.availableTime,
     mood: fallback.intent.mood !== "unknown" ? fallback.intent.mood : modelIntent.mood,
     energyLevel: fallback.intent.energyLevel !== "unknown" ? fallback.intent.energyLevel : modelIntent.energyLevel,
-    desiredExperiences: Array.from(new Set([
-      ...fallback.intent.desiredExperiences,
-      ...modelIntent.desiredExperiences,
-    ])),
+    desiredExperiences: explicitExperiences,
+    inferredExperiences,
     preferredGenres: Array.from(new Set([
       ...fallback.intent.preferredGenres,
       ...groundedModelGenres,
     ])).filter((genre) => !fallback.intent.avoidedGenres.includes(genre)),
     avoidedGenres: fallback.intent.avoidedGenres,
     referenceGames: groundedReferences,
+    excludedGames: Array.from(new Set([
+      ...(fallback.intent.excludedGames ?? []),
+      ...groundedExcludedGames,
+    ])),
   });
   const userTurnCount = messages.filter((message) => message.role === "user").length;
   const hasSpecificExperience = intent.desiredExperiences.some((experience) => experience !== "surprise");

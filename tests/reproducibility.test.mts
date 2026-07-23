@@ -40,13 +40,14 @@ test("documentation links resolve to real files", async () => {
   }
 });
 
-test("paginated collection and history pages request exact lifetime totals", async () => {
+test("collection and history stay paginated without misleading partial-page analytics", async () => {
   const collection = await text("src/app/dashboard/collection/page.tsx");
   const history = await text("src/app/dashboard/history/page.tsx");
   assert.match(collection, /count:\s*"exact",\s*head:\s*true/);
-  assert.match(collection, /Recent-page rating/);
-  assert.match(history, /count:\s*"exact",\s*head:\s*true/);
-  assert.match(history, /Recent average fit/);
+  assert.match(collection, /\.range\(0, COLLECTION_PAGE_SIZE - 1\)/);
+  assert.match(history, /\.range\(0, HISTORY_PAGE_SIZE - 1\)/);
+  assert.doesNotMatch(collection, /Recent-page rating/);
+  assert.doesNotMatch(history, /Recent average fit/);
 });
 
 test("participant protocol records the approval reference and expiry", async () => {

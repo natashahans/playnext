@@ -17,6 +17,11 @@ function naturalList(values: string[]) {
   return `${values.slice(0, -1).join(", ")}, and ${values.at(-1)}`;
 }
 
+function sentence(value: string) {
+  const clean = value.trim().replace(/[.!?]+$/, "");
+  return clean ? `${clean.charAt(0).toUpperCase()}${clean.slice(1)}.` : "";
+}
+
 export function buildExplanation({
   reasons,
   cautions,
@@ -33,13 +38,30 @@ export function buildExplanation({
       : `This is the strongest balanced option from ${pool} for the context you described.`;
   }
 
-  const confidenceLead = confidenceBand === "low"
-    ? "This is the best provisional match"
-    : confidenceBand === "high"
-      ? "This is a particularly strong match"
-      : "This is a strong match";
+  const first = strongest[0];
+  const rest = strongest.slice(1);
+  let explanation: string;
 
-  let explanation = `${confidenceLead} because ${naturalList(strongest)}.`;
-  if (caution) explanation += ` One consideration: ${caution}.`;
+  if (/session|available time|short|deeper game/i.test(first)) {
+    explanation = `For the time you have, ${first}.`;
+  } else if (/energy|pace/i.test(first)) {
+    explanation = `For how you feel right now, ${first}.`;
+  } else if (/experience|qualities/i.test(first)) {
+    explanation = `It matches the kind of experience in your current request: ${first}.`;
+  } else if (confidenceBand === "low") {
+    explanation = `This is the leading provisional option from ${pool}: ${first}.`;
+  } else {
+    explanation = `This leads the current shortlist because ${first}.`;
+  }
+
+  if (rest.length > 0) explanation += ` ${sentence(naturalList(rest))}`;
+  if (caution) {
+    const lead = /energy|intensity/i.test(caution)
+      ? "One thing to weigh"
+      : /recent|variety/i.test(caution)
+        ? "The trade-off is variety"
+        : "The main caveat";
+    explanation += ` ${lead}: ${caution}.`;
+  }
   return explanation;
 }

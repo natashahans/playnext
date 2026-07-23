@@ -1,247 +1,147 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Check, Gamepad2, Search, X } from "lucide-react";
 import OnboardingShell from "@/components/onboarding/OnboardingShell";
-import { searchRawgGames, type RawgGame } from "@/lib/rawg";
-import { supabase } from "@/lib/supabase";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import { saveCatalogueGame } from "@/lib/catalogue-client";
+import { searchRawgGames, type DiscoveryPayload, type RawgGame } from "@/lib/rawg";
+import { supabase } from "@/lib/supabase";
 
 export default function OnboardingCollectionPage() {
   const router = useRouter();
-
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<RawgGame[]>([]);
+  const [suggested, setSuggested] = useState<RawgGame[]>([]);
   const [addedGames, setAddedGames] = useState<RawgGame[]>([]);
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const resultsToShow = query.trim().length < 2 ? [] : results;
+  useEffect(() => {
+    let active = true;
+    authenticatedFetch("/api/games/discover")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load suggestions.");
+        const payload = (await response.json()) as DiscoveryPayload;
+        const games = payload.sections.find((section) => section.id === "popular")?.games
+          ?? payload.sections[0]?.games
+          ?? [];
+        if (active) setSuggested(games.slice(0, 12));
+      })
+      .catch(() => { if (active) setErrorMessage("Suggestions are unavailable, but search still works."); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const value = query.trim();
+    if (value.length < 2) return;
 
-    if (value.length < 2) {
-      return;
-    }
-
-    const timeout = setTimeout(async () => {
+    let active = true;
+    const timeout = window.setTimeout(async () => {
       setSearching(true);
-
+      setErrorMessage("");
       try {
         const games = await searchRawgGames(value);
-        setResults(games);
-      } catch (error) {
-        console.error(error);
-        alert("Failed to search games.");
+        if (active) setResults(games);
+      } catch {
+        if (active) setErrorMessage("Search is taking a break. Please try again.");
       } finally {
-        setSearching(false);
+        if (active) setSearching(false);
       }
-    }, 400);
-
-    return () => clearTimeout(timeout);
+    }, 280);
+    return () => { active = false; window.clearTimeout(timeout); };
   }, [query]);
 
-  function addGame(game: RawgGame) {
-    if (addedGames.some((item) => item.id === game.id)) return;
+  const gamesToShow = query.trim().length >= 2 ? results : suggested;
+  const selectedIds = useMemo(() => new Set(addedGames.map((game) => game.id)), [addedGames]);
 
-    setAddedGames([...addedGames, game]);
-  }
-
-  function removeGame(gameId: number) {
-    setAddedGames(addedGames.filter((game) => game.id !== gameId));
+  function toggleGame(game: RawgGame) {
+    setAddedGames((current) => current.some((item) => item.id === game.id)
+      ? current.filter((item) => item.id !== game.id)
+      : [...current, game]
+    );
   }
 
   async function finishOnboarding() {
+    if (saving) return;
     setSaving(true);
+    setErrorMessage("");
 
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) throw new Error("Your session expired. Please log in again.");
 
-    if (userError || !userData.user) {
-      alert("Please log in again.");
-      router.push("/login");
-      return;
-    }
-
-    for (const game of addedGames) {
-      let savedGame: { id: string };
-      try {
-        savedGame = await saveCatalogueGame(game.slug);
-      } catch (error) {
-        alert(error instanceof Error ? error.message : "This game could not be saved.");
-        setSaving(false);
-        return;
+      if (addedGames.length > 0) {
+        const savedGames = await Promise.all(addedGames.map((game) => saveCatalogueGame(game.slug)));
+        const { error: userGameError } = await supabase.from("user_games").upsert(
+          savedGames.map((game) => ({ user_id: userData.user.id, game_id: game.id, status: "backlog" })),
+          { onConflict: "user_id,game_id", ignoreDuplicates: true }
+        );
+        if (userGameError) throw userGameError;
       }
 
-      const { error: userGameError } = await supabase.from("user_games").upsert(
-        {
-          user_id: userData.user.id,
-          game_id: savedGame.id,
-          status: "backlog",
-        },
-        {
-          onConflict: "user_id,game_id",
-          ignoreDuplicates: true,
-        }
+      const { error: profileError } = await supabase.from("profiles").upsert(
+        { id: userData.user.id, email: userData.user.email, onboarding_completed: true },
+        { onConflict: "id" }
       );
-
-      if (userGameError) {
-        alert(userGameError.message);
-        setSaving(false);
-        return;
-      }
+      if (profileError) throw profileError;
+      router.replace("/dashboard");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Your library could not be saved.");
+      setSaving(false);
     }
-
-    const { error: profileError } = await supabase.from("profiles").upsert(
-    {
-        id: userData.user.id,
-        email: userData.user.email,
-        onboarding_completed: true,
-    },
-    { onConflict: "id" }
-    );
-
-    if (profileError) {
-    alert(profileError.message);
-    setSaving(false);
-    return;
-    }
-
-    router.push("/dashboard");
   }
 
   return (
     <OnboardingShell
       step={3}
       totalSteps={3}
-      title="Build your library"
-      description="Add a few games you already own so PlayNext can tailor recommendations to your real collection."
+      eyebrow="Make it personal"
+      title="Add games you know"
+      description="A few familiar games help PlayNext understand your taste. You can add more later."
       backHref="/onboarding/platforms"
-      nextLabel="Start using PlayNext"
-      nextDisabled={addedGames.length === 0 || saving}
+      nextLabel={addedGames.length > 0 ? `Finish with ${addedGames.length} ${addedGames.length === 1 ? "game" : "games"}` : "Finish setup"}
       loading={saving}
       onNext={finishOnboarding}
+      selectionStatus={<span className="onboarding-library-count"><strong>{addedGames.length}</strong> selected</span>}
     >
-      <div className="collection-onboarding">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search games..."
-          className="collection-search"
-        />
+      <div className="onboarding-library">
+        <label className="onboarding-library-search">
+          <Search aria-hidden="true" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by game title" autoComplete="off" />
+          {query ? <button type="button" onClick={() => setQuery("")} aria-label="Clear search"><X aria-hidden="true" /></button> : null}
+        </label>
 
-        <div className="collection-layout">
-          <section className="collection-panel">
-            <div className="collection-panel-header">
-              <h3>
-                {query.trim().length < 2
-                  ? "Search RAWG"
-                  : searching
-                  ? "Searching..."
-                  : "Search results"}
-              </h3>
-              <span>{resultsToShow.length} games</span>
-            </div>
-
-            {query.trim().length < 2 ? (
-              <div className="collection-empty">
-                <p>Search for a game to get started</p>
-                <span>Start typing a game title above. Results will appear here instantly.</span>
-              </div>
-            ) : resultsToShow.length === 0 && !searching ? (
-              <div className="collection-empty">
-                <p>No games found</p>
-                <span>Try another search term.</span>
-              </div>
-            ) : (
-              <div className="collection-results">
-                {resultsToShow.map((game) => {
-                  const added = addedGames.some((item) => item.id === game.id);
-
-                  return (
-                    <button
-                      key={game.id}
-                      onClick={() => addGame(game)}
-                      className="collection-game-row"
-                    >
-                      {game.background_image ? (
-                        <div className="relative h-12 w-9 overflow-hidden rounded-lg">
-                          <Image
-                            src={game.background_image}
-                            alt={game.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="collection-game-placeholder" />
-                      )}
-
-                      <div>
-                        <p>{game.name}</p>
-                        <span>
-                          {game.genres?.slice(0, 2).map((genre) => genre.name).join(" • ") ||
-                            "Game"}
-                        </span>
-                      </div>
-
-                      <strong>{added ? "Added" : "+"}</strong>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="collection-panel">
-            <div className="collection-panel-header">
-              <h3>Added games</h3>
-              <span>{addedGames.length}</span>
-            </div>
-
-            {addedGames.length === 0 ? (
-              <div className="collection-empty">
-                <p>No games added yet</p>
-                <span>Search on the left and add a few games you own.</span>
-              </div>
-            ) : (
-              <div className="collection-added-list">
-                {addedGames.map((game) => (
-                  <button
-                    key={game.id}
-                    onClick={() => removeGame(game.id)}
-                    className="collection-added-game"
-                  >
-                    {game.background_image ? (
-                      <div className="relative h-12 w-9 overflow-hidden rounded-lg">
-                        <Image
-                          src={game.background_image}
-                          alt={game.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="collection-game-placeholder" />
-                    )}
-
-                    <span>{game.name}</span>
-                    <strong>Remove</strong>
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
+        <div className="onboarding-library-heading">
+          <h2>{query.trim().length >= 2 ? "Search results" : "Popular games"}</h2>
+          <span>{searching ? "Searching…" : `${gamesToShow.length} shown`}</span>
         </div>
 
-        <button
-          onClick={finishOnboarding}
-          disabled={saving}
-          className="collection-skip"
-        >
-          Skip for now
-        </button>
+        {errorMessage ? <p className="onboarding-inline-error" role="alert">{errorMessage}</p> : null}
+
+        {!searching && gamesToShow.length === 0 ? (
+          <div className="onboarding-library-empty"><Gamepad2 aria-hidden="true" /><h3>No games found</h3><p>Check the title or try a shorter search.</p></div>
+        ) : (
+          <div className="onboarding-library-grid" aria-busy={searching}>
+            {gamesToShow.map((game) => {
+              const selected = selectedIds.has(game.id);
+              return (
+                <button key={game.id} type="button" onClick={() => toggleGame(game)} aria-pressed={selected} className={`onboarding-game-card ${selected ? "onboarding-game-card-selected" : ""}`}>
+                  <span className="onboarding-game-art">
+                    {game.background_image ? <Image src={game.background_image} alt="" fill sizes="(max-width: 600px) 50vw, 200px" className="object-cover" /> : <Gamepad2 aria-hidden="true" />}
+                    <i>{selected ? <Check aria-hidden="true" /> : "+"}</i>
+                  </span>
+                  <span className="onboarding-game-name">{game.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <button type="button" onClick={finishOnboarding} disabled={saving} className="collection-skip">Skip this for now</button>
       </div>
     </OnboardingShell>
   );

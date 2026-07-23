@@ -26,6 +26,7 @@ function intent(overrides: Partial<ExtractedIntent> = {}): ExtractedIntent {
     preferredGenres: [],
     avoidedGenres: [],
     referenceGames: [],
+    excludedGames: [],
     confidence: 0.8,
     summary: "Test session",
     ...overrides,
@@ -99,6 +100,19 @@ test("a currently avoided genre is a hard eligibility constraint", () => {
   const result = ranked.find((item) => item.id === horror.id);
   assert.equal(result?.isEligible, false);
   assert.ok((result?.exclusionReasons.length ?? 0) > 0);
+  assert.equal(ranked[0].id, cozy.id);
+});
+
+test("a game rejected in chat becomes ineligible immediately", () => {
+  const borderlands = game("40", "Borderlands 2", ["Action", "Shooter"], ["Story Rich"]);
+  const ranked = scoreGames([borderlands, cozy], intent({
+    desiredExperiences: ["relaxing"],
+    excludedGames: ["Borderlands"],
+  }), [], null, [], { now: NOW });
+
+  const rejected = ranked.find((item) => item.id === borderlands.id);
+  assert.equal(rejected?.isEligible, false);
+  assert.match(rejected?.exclusionReasons[0] ?? "", /explicitly rejected/i);
   assert.equal(ranked[0].id, cozy.id);
 });
 

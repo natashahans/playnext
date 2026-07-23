@@ -2,17 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   ExternalLink,
   Gamepad2,
+  Maximize2,
   Monitor,
-  Play,
   Star,
+  X,
 } from "lucide-react";
 import AddRawgGameButton from "@/components/games/AddRawgGameButton";
 import GameRail from "@/components/games/GameRail";
@@ -36,10 +38,14 @@ function formatReleaseDate(value: string | null) {
 
 export default function GameDetailsPage() {
   const { slug } = useParams<{ slug: string }>();
+  const router = useRouter();
   const [details, setDetails] = useState<GameDetailPayload | null>(null);
   const [existingRawgIds, setExistingRawgIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [selectedScreenshotId, setSelectedScreenshotId] = useState<number | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -89,6 +95,24 @@ export default function GameDetailsPage() {
     };
   }, [slug]);
 
+  useEffect(() => {
+    if (!lightboxOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setLightboxOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [lightboxOpen]);
+
   function handleAdded(gameId: number) {
     setExistingRawgIds((current) => new Set([...current, gameId]));
   }
@@ -103,18 +127,25 @@ export default function GameDetailsPage() {
         <Gamepad2 size={28} aria-hidden="true" />
         <h1>This game could not be loaded</h1>
         <p>{errorMessage || "Please return to the catalogue and try another game."}</p>
-        <Link href="/dashboard/search"><ArrowLeft size={16} /> Back to Add games</Link>
+        <button type="button" onClick={() => router.back()}><ArrowLeft size={16} /> Back to games</button>
       </div>
     );
   }
 
   const { game, screenshots, similar } = details;
-  const trailerUrl =
-    game.clip?.clips?.full ??
-    game.clip?.video ??
-    game.clip?.clip ??
-    null;
   const heroImage = game.background_image ?? screenshots[0]?.image ?? null;
+  const description = game.description_raw || "A full description is not available for this game yet.";
+  const descriptionIsLong = description.length > 760;
+  const selectedScreenshotIndex = Math.max(
+    0,
+    screenshots.findIndex((screenshot) => screenshot.id === selectedScreenshotId)
+  );
+  const selectedScreenshot = screenshots[selectedScreenshotIndex] ?? screenshots[0] ?? null;
+
+  function selectScreenshot(index: number) {
+    const normalizedIndex = (index + screenshots.length) % screenshots.length;
+    setSelectedScreenshotId(screenshots[normalizedIndex].id);
+  }
 
   return (
     <article className="game-detail-page">
@@ -131,10 +162,10 @@ export default function GameDetailsPage() {
         )}
         <div className="game-detail-hero-scrim" />
 
-        <Link href="/dashboard/search" className="game-detail-back">
+        <button type="button" onClick={() => router.back()} className="game-detail-back">
           <ArrowLeft size={16} aria-hidden="true" />
-          Back to Add games
-        </Link>
+          Back
+        </button>
 
         <div className="game-detail-hero-content">
           <div className="game-detail-genres">
@@ -171,47 +202,63 @@ export default function GameDetailsPage() {
       <div className="game-detail-body">
         <main className="game-detail-main">
           <section className="game-detail-about">
-            <span className="game-detail-eyebrow">About the game</span>
-            <h2>Enter the world of {game.name}</h2>
-            <p>{game.description_raw || "A full description is not available for this game yet."}</p>
+            <h2>About {game.name}</h2>
+            <p className={!descriptionExpanded && descriptionIsLong ? "is-collapsed" : undefined}>
+              {description}
+            </p>
+            {descriptionIsLong && (
+              <button
+                type="button"
+                className="game-detail-description-toggle"
+                onClick={() => setDescriptionExpanded((current) => !current)}
+                aria-expanded={descriptionExpanded}
+              >
+                {descriptionExpanded ? "Show less" : "Read full description"}
+              </button>
+            )}
           </section>
 
-          {trailerUrl && (
-            <section className="game-detail-media-section">
+          {screenshots.length > 0 && selectedScreenshot && (
+            <section className="game-detail-media-section game-detail-gallery-section">
               <div className="game-detail-section-heading">
-                <div>
-                  <span className="game-detail-eyebrow">Watch</span>
-                  <h2>Game trailer</h2>
-                </div>
-                <Play size={19} aria-hidden="true" />
-              </div>
-              <video controls preload="metadata" poster={game.clip?.preview ?? heroImage ?? undefined}>
-                <source src={trailerUrl} />
-                Your browser does not support video playback.
-              </video>
-            </section>
-          )}
-
-          {screenshots.length > 0 && (
-            <section className="game-detail-media-section">
-              <div className="game-detail-section-heading">
-                <div>
-                  <span className="game-detail-eyebrow">Inside the game</span>
-                  <h2>Screenshots</h2>
-                </div>
+                <h2>Screenshots</h2>
                 <span>{screenshots.length} images</span>
               </div>
-              <div className="game-detail-gallery">
+
+              <button
+                type="button"
+                className="game-detail-gallery-feature"
+                onClick={() => setLightboxOpen(true)}
+                aria-label={`Open screenshot ${selectedScreenshotIndex + 1} of ${game.name}`}
+              >
+                <Image
+                  src={selectedScreenshot.image}
+                  alt={`${game.name} screenshot ${selectedScreenshotIndex + 1}`}
+                  fill
+                  sizes="(max-width: 900px) 100vw, 68vw"
+                  className="object-cover"
+                />
+                <span><Maximize2 size={16} aria-hidden="true" /> View full screen</span>
+              </button>
+
+              <div className="game-detail-gallery-thumbnails" aria-label="Choose a screenshot">
                 {screenshots.slice(0, 6).map((screenshot, index) => (
-                  <div key={screenshot.id} className={index === 0 ? "game-detail-shot game-detail-shot-wide" : "game-detail-shot"}>
+                  <button
+                    type="button"
+                    key={screenshot.id}
+                    className={screenshot.id === selectedScreenshot.id ? "is-active" : undefined}
+                    onClick={() => setSelectedScreenshotId(screenshot.id)}
+                    aria-label={`Show screenshot ${index + 1}`}
+                    aria-pressed={screenshot.id === selectedScreenshot.id}
+                  >
                     <Image
                       src={screenshot.image}
-                      alt={`${game.name} screenshot ${index + 1}`}
+                      alt=""
                       fill
-                      sizes="(max-width: 700px) 100vw, 50vw"
+                      sizes="160px"
                       className="object-cover"
                     />
-                  </div>
+                  </button>
                 ))}
               </div>
             </section>
@@ -247,12 +294,49 @@ export default function GameDetailsPage() {
             section={{
               id: "similar-games",
               title: "You may also like",
-              subtitle: `More games related to ${game.name}`,
+              subtitle: "",
               games: similar,
             }}
             existingRawgIds={existingRawgIds}
             onAdded={handleAdded}
           />
+        </div>
+      )}
+
+      {lightboxOpen && selectedScreenshot && (
+        <div
+          className="game-detail-modal game-detail-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${game.name} screenshot viewer`}
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setLightboxOpen(false);
+          }}
+        >
+          <button type="button" className="game-detail-modal-close" onClick={() => setLightboxOpen(false)} aria-label="Close screenshot viewer">
+            <X size={21} aria-hidden="true" />
+          </button>
+          {screenshots.length > 1 && (
+            <button type="button" className="game-detail-lightbox-previous" onClick={() => selectScreenshot(selectedScreenshotIndex - 1)} aria-label="Previous screenshot">
+              <ChevronLeft size={24} aria-hidden="true" />
+            </button>
+          )}
+          <div className="game-detail-lightbox-image">
+            <Image
+              src={selectedScreenshot.image}
+              alt={`${game.name} screenshot ${selectedScreenshotIndex + 1}`}
+              fill
+              sizes="96vw"
+              className="object-contain"
+              priority
+            />
+          </div>
+          {screenshots.length > 1 && (
+            <button type="button" className="game-detail-lightbox-next" onClick={() => selectScreenshot(selectedScreenshotIndex + 1)} aria-label="Next screenshot">
+              <ChevronRight size={24} aria-hidden="true" />
+            </button>
+          )}
+          <span className="game-detail-lightbox-count">{selectedScreenshotIndex + 1} / {screenshots.length}</span>
         </div>
       )}
     </article>
