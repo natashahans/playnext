@@ -28,19 +28,23 @@
   --color-border: #e1e5ea;
   --color-border-strong: #cbd1d9;
 
-  --color-primary: #2356d8;
-  --color-primary-hover: #1947bd;
-  --color-primary-soft: #edf2ff;
-  --color-primary-ring: rgba(35, 86, 216, 0.18);
+  --color-brand: #587edb;
+  --color-brand-hover: color-mix(in srgb, var(--color-brand) 86%, black);
+  --color-brand-soft: color-mix(in srgb, var(--color-brand) 12%, white);
+  --color-brand-ring: rgba(88, 126, 219, 0.18);
+  --color-primary: var(--color-brand);
+  --color-primary-hover: var(--color-brand-hover);
+  --color-primary-soft: var(--color-brand-soft);
+  --color-primary-ring: var(--color-brand-ring);
   --color-on-primary: #ffffff;
 
-  --color-accent: #2356d8;
-  --color-accent-hover: #1947bd;
-  --color-accent-soft: #edf2ff;
-  --color-accent-ring: rgba(35, 86, 216, 0.18);
+  --color-accent: var(--color-brand);
+  --color-accent-hover: var(--color-brand-hover);
+  --color-accent-soft: var(--color-brand-soft);
+  --color-accent-ring: var(--color-brand-ring);
 
-  --color-cyan: #2356d8;
-  --color-cyan-soft: #edf2ff;
+  --color-cyan: var(--color-brand);
+  --color-cyan-soft: var(--color-brand-soft);
 
   --color-success: #16845b;
   --color-success-soft: #e9f8f1;

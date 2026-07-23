@@ -160,7 +160,7 @@
   border: 1px solid #dde2e9;
   border-radius: 9px;
   background: #ffffff;
-  color: #5969bb;
+  color: var(--color-primary);
 }
 
 .ai-message > div {
@@ -310,8 +310,8 @@
 }
 
 .ai-message-result > span {
-  background: #eef0fb;
-  color: #5969bb;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 
 .ai-message-result > div {
@@ -383,7 +383,7 @@
 }
 
 .ai-inline-recommendation-heading > div:first-child > span {
-  color: #4f609f;
+  color: var(--color-primary-hover);
   font-size: 9px;
   font-weight: 760;
   letter-spacing: 0.07em;
@@ -415,7 +415,7 @@
 }
 
 .ai-match-score strong {
-  color: #4f609f;
+  color: var(--color-primary-hover);
   font-size: 15px;
   font-weight: 750;
   line-height: 1;

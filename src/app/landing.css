@@ -75,14 +75,14 @@
   border-radius: 12px;
   background: linear-gradient(
     180deg,
-    #7b7cff 0%,
-    #6269f0 100%
+    color-mix(in srgb, var(--color-brand) 78%, white) 0%,
+    var(--color-brand) 100%
   );
 
   color: #fff;
 
   box-shadow:
-    0 10px 24px rgba(94, 102, 232, 0.28),
+    0 10px 24px color-mix(in srgb, var(--color-brand) 28%, transparent),
     inset 0 0 0 1px rgba(255, 255, 255, 0.15);
 }
 
@@ -115,14 +115,14 @@
 
   background: linear-gradient(
     180deg,
-    #7b7cff 0%,
-    #6269f0 100%
+    color-mix(in srgb, var(--color-brand) 78%, white) 0%,
+    var(--color-brand) 100%
   );
 
   color: #fff;
 
   box-shadow:
-    0 10px 24px rgba(94,102,232,.28),
+    0 10px 24px color-mix(in srgb, var(--color-brand) 28%, transparent),
     inset 0 0 0 1px rgba(255,255,255,.15);
 }
 
@@ -143,14 +143,14 @@
 
   background: linear-gradient(
     180deg,
-    #7b7cff 0%,
-    #6269f0 100%
+    color-mix(in srgb, var(--color-brand) 78%, white) 0%,
+    var(--color-brand) 100%
   );
 
   color: white;
 
   box-shadow:
-    0 10px 24px rgba(94, 102, 232, .28),
+    0 10px 24px color-mix(in srgb, var(--color-brand) 28%, transparent),
     inset 0 0 0 1px rgba(255,255,255,.15);
 }
 
@@ -423,7 +423,7 @@
   gap: 10px;
 
   border-radius: 999px;
-  background: #587edb;
+  background: var(--color-brand);
   padding: 0 24px;
 
   color: #ffffff;
@@ -432,7 +432,7 @@
   text-decoration: none;
 
   box-shadow:
-    0 14px 32px rgba(73, 109, 202, 0.2),
+    0 14px 32px color-mix(in srgb, var(--color-brand) 20%, transparent),
     inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 
   transition:
@@ -442,11 +442,11 @@
 }
 
 .landing-hero-primary-cta:hover {
-  background: #4c70cb;
+  background: var(--color-brand-hover);
   transform: translateY(-1px);
 
   box-shadow:
-    0 17px 36px rgba(73, 109, 202, 0.25),
+    0 17px 36px color-mix(in srgb, var(--color-brand) 25%, transparent),
     inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
@@ -498,9 +498,9 @@
 }
 
 .landing-hero-pill-active {
-  border-color: rgba(72, 115, 215, 0.3);
+  border-color: color-mix(in srgb, var(--color-brand) 30%, transparent);
   background: rgba(255, 255, 255, 0.42);
-  color: #4e75cf;
+  color: var(--color-brand);
 }
 
 .landing-hero-pill-separator {

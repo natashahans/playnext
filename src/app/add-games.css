@@ -69,7 +69,7 @@
 }
 
 .discover-search:focus-within {
-  border-color: rgba(35, 86, 216, 0.45);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
   box-shadow: 0 0 0 4px var(--color-primary-ring);
 }
 

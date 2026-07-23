@@ -274,7 +274,7 @@
 .history-v2-heading h2 { margin: 6px 0 0; color: var(--color-ink); font-size: 24px; font-weight: 730; line-height: 1.05; letter-spacing: -0.04em; }
 .history-v2-genres { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 5px; }
 .history-v2-genres span { border-radius: 999px; background: var(--color-canvas-soft); padding: 5px 8px; color: var(--color-muted); font-size: 10px; font-weight: 670; }
-.history-v2-score { width: 64px; height: 64px; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #ccdafb; border-radius: 50%; background: var(--color-primary-soft); }
+.history-v2-score { width: 64px; height: 64px; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--color-primary) 22%, white); border-radius: 50%; background: var(--color-primary-soft); }
 .history-v2-score strong { color: var(--color-primary); font-size: 21px; font-weight: 750; line-height: 1; }
 .history-v2-score span { margin-top: 3px; color: var(--color-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .history-v2-content blockquote { margin: 16px 0 0; border-left: 2px solid var(--color-primary); padding-left: 12px; color: var(--color-ink-soft); font-size: 12px; font-style: italic; line-height: 1.55; }
@@ -350,7 +350,7 @@
   cursor: pointer;
 }
 .settings-v2-chip-grid button:hover:not(:disabled) { border-color: var(--color-border-strong); color: var(--color-ink); }
-.settings-v2-chip-grid button.is-active { border-color: #b6c8f4; background: var(--color-primary-soft); color: var(--color-primary); }
+.settings-v2-chip-grid button.is-active { border-color: color-mix(in srgb, var(--color-primary) 34%, white); background: var(--color-primary-soft); color: var(--color-primary); }
 .settings-v2-chip-grid button:disabled { cursor: not-allowed; opacity: 0.4; }
 .settings-platform-grid { margin-top: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .settings-platform-grid button { min-width: 0; min-height: 70px; display: grid; grid-template-columns: 38px minmax(0, 1fr) 18px; align-items: center; gap: 10px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-canvas-soft); padding: 11px; color: var(--color-muted); text-align: left; cursor: pointer; }
@@ -360,7 +360,7 @@
 .settings-platform-grid strong { color: var(--color-ink); font-size: 12px; font-weight: 700; }
 .settings-platform-grid small { margin-top: 3px; color: var(--color-subtle); font-size: 10px; }
 .settings-platform-grid button > svg { color: var(--color-primary); opacity: 0; }
-.settings-platform-grid button.is-active { border-color: #aabff1; background: var(--color-primary-soft); }
+.settings-platform-grid button.is-active { border-color: color-mix(in srgb, var(--color-primary) 30%, white); background: var(--color-primary-soft); }
 .settings-platform-grid button.is-active > svg { opacity: 1; }
 .settings-choice-group { margin-top: 23px; border-top: 1px solid var(--color-border); padding-top: 20px; }
 .settings-choice-group > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -372,7 +372,7 @@
 .settings-choice-grid > button > svg:last-child { position: absolute; top: 13px; right: 13px; }
 .settings-choice-grid strong { margin-top: 11px; color: var(--color-ink); font-size: 12px; font-weight: 710; }
 .settings-choice-grid span { margin-top: 5px; color: var(--color-muted); font-size: 10px; line-height: 1.45; }
-.settings-choice-grid > button.is-active { border-color: #aabff1; background: var(--color-primary-soft); color: var(--color-primary); }
+.settings-choice-grid > button.is-active { border-color: color-mix(in srgb, var(--color-primary) 30%, white); background: var(--color-primary-soft); color: var(--color-primary); }
 .settings-reset-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; }
 .settings-reset-card > div { display: flex; align-items: flex-start; gap: 10px; color: var(--color-muted); }
 .settings-reset-card strong { display: block; color: var(--color-ink-soft); font-size: 12px; font-weight: 700; }
